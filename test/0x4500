@@ -1,0 +1,2288 @@
+; z80dasm 1.1.6
+; command line: z80dasm -o 0x4500 cd.bin
+
+	org	00100h
+
+	jr $+106
+	ld de,(04174h)
+	ld hl,00bb4h
+	add hl,de	
+	ld (04530h),hl
+	ld hl,(040b1h)
+	ld (04532h),hl
+	ld hl,00084h
+	add hl,de	
+	push de	
+	ld de,04534h
+	ld bc,00002h
+	ldir
+	pop de	
+	ld hl,0055eh
+	add hl,de	
+	push de	
+	ld de,04536h
+	ld bc,00003h
+	ldir
+	pop de	
+	ret	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	ld a,(de)	
+	cp (hl)	
+	ret nz	
+	inc hl	
+	inc de	
+	djnz $-5
+	ret	
+	push hl	
+	ld hl,(040eah)
+	call 02337h
+	dec c	
+	ld c,c	
+	ld l,h	
+	ld l,h	
+	ld h,l	
+	ld h,a	
+	ld h,c	
+	ld l,h	
+	jr nz,$+68
+	ld b,c	
+	ld d,e	
+	ld c,c	
+	ld b,e	
+	jr nz,$+120
+	ld h,l	
+	ld (hl),d	
+	ld (hl),e	
+	ld l,c	
+	ld l,a	
+	ld l,(hl)	
+	ld hl,0000dh
+	ld hl,04548h
+	call 02b75h
+	jp 0465bh
+	ld hl,01a01h
+	ld de,04541h
+	ld b,004h
+	call 04539h
+	jr nz,$-20
+	ld hl,02b1ch
+	ld de,04545h
+	ld b,003h
+	call 04539h
+	jr nz,$-33
+	ld hl,(040b1h)
+	ld (04530h),hl
+	ld de,0f44bh
+	add hl,de	
+	ld (04532h),hl
+	ld hl,(04174h)
+	ld (04534h),hl
+	ld a,(041a6h)
+	ld (04536h),a
+	ld hl,(041a7h)
+	ld (04537h),hl
+	ld hl,(04174h)
+	ld bc,00015h
+	add hl,bc	
+	ex de,hl	
+	ld hl,04698h
+	add hl,bc	
+	ld b,00ch
+	call 04539h
+	call z,04502h
+	ld de,044f5h
+	ld hl,(04530h)
+	ld bc,00bb4h
+	or a	
+	sbc hl,bc
+	push hl	
+	pop iy
+	ld hl,0524ch
+	ld bc,00d57h
+	dec hl	
+	inc hl	
+	scf	
+	rr (hl)
+	jr z,$-4
+	jr nc,$+20
+	push bc	
+	push hl	
+	ld a,(de)	
+	inc de	
+	ld c,a	
+	ld a,(de)	
+	ld b,a	
+	push iy
+	pop hl	
+	add hl,bc	
+	ld a,h	
+	ld (de),a	
+	dec de	
+	ld a,l	
+	ld (de),a	
+	pop hl	
+	pop bc	
+	inc de	
+	dec bc	
+	ld a,b	
+	or c	
+	jr nz,$-28
+	ld hl,(04532h)
+	ld (040b1h),hl
+	ld de,00032h
+	jr z,$+87
+	ld b,001h
+	ld sp,hl	
+	ld (bc),a	
+	or 045h
+	nop	
+	call 083cdh
+	ld e,021h
+	ld c,e	
+	ld d,d	
+	ld de,(04530h)
+	dec de	
+	ld bc,00bb4h
+	lddr
+	ld hl,(04534h)
+	ld (00084h),hl
+	ld a,(04536h)
+	ld (0055eh),a
+	ld hl,(04537h)
+	ld (0055fh),hl
+	ld hl,00000h
+	ld (04174h),hl
+	ld hl,0044ch
+	ld (04162h),hl
+	ld a,0c3h
+	ld (041a6h),a
+	ld (041c1h),a
+	ld (041beh),a
+	ld hl,00541h
+	ld (041a7h),hl
+	ld hl,004b4h
+	ld (041c2h),hl
+	ld hl,004dah
+	ld (041bfh),hl
+	ld hl,00b32h
+	ld (0400dh),hl
+	ld a,008h
+	ld (00b86h),a
+	xor a	
+	ld (00b87h),a
+	ld (00b88h),a
+	out (080h),a
+	ld hl,04661h
+	call 02b75h
+	call 01b4dh
+	jp 01a19h
+	inc c	
+	ld b,e	
+	ld l,a	
+	ld l,l	
+	ld l,l	
+	ld l,a	
+	ld h,h	
+	ld l,a	
+	ld (hl),d	
+	ld h,l	
+	jr nz,$+85
+	ld h,l	
+	ld (hl),d	
+	ld l,c	
+	ld h,c	
+	ld l,h	
+	jr nz,$+68
+	ld (hl),l	
+	ld (hl),e	
+	jr nz,$+74
+	ld h,c	
+	ld l,(hl)	
+	ld h,h	
+	ld l,h	
+	ld h,l	
+	ld (hl),d	
+	jr nz,$+51
+	ld l,030h
+	dec c	
+	jr z,$+101
+	add hl,hl	
+	jr nz,$+68
+	ld c,l	
+	ld b,l	
+	dec l	
+	ld c,e	
+	ld d,e	
+	ld e,d	
+	ld c,e	
+	inc l	
+	jr nz,$+51
+	add hl,sp	
+	jr c,$+55
+	ld l,00dh
+	nop	
+	jp z,00083h
+	push af	
+	xor a	
+	ld (0062ch),a
+	ld (00630h),a
+	ld bc,00b32h
+	ld (0400dh),bc
+	ld a,(005fah)
+	ld c,a	
+	ld a,006h
+	rst 28h	
+	ld c,000h
+	ld a,00ah
+	rst 28h	
+	pop af	
+	cp 0a7h
+	jp z,00086h
+	cp 024h
+	jp z,000eeh
+	cp 0b5h
+	jp z,0015ah
+	cp 0afh
+	jp z,00471h
+	cp 0a9h
+	jp z,00197h
+	cp 0adh
+	jp z,0021bh
+	cp 0bbh
+	jp z,00271h
+	cp 0aah
+	jp z,00288h
+	cp 09eh
+	jp z,001e6h
+	cp 083h
+	jp z,0029fh
+	cp 082h
+	jp z,0028eh
+	cp 0a2h
+	jp z,002d1h
+	cp 0abh
+	jp z,002d4h
+	cp 0b3h
+	jp z,002d7h
+	cp 0b0h
+	jp z,002dah
+	cp 0a6h
+	jp z,00339h
+	cp 0b8h
+	jp z,00353h
+	cp 0b2h
+	jp z,0047bh
+	cp 089h
+	jp z,003afh
+	cp 0a4h
+	jp z,00375h
+	jp 01997h
+	rst 10h	
+	cp 0aeh
+	call z,00010h
+	call 02337h
+	push hl	
+	ld hl,0ffech
+	add hl,sp	
+	ld de,004e9h
+	ld a,002h
+	rst 28h	
+	xor a	
+	ld (005c9h),a
+	call 0051bh
+	ld de,(040a4h)
+	ld c,01fh
+	ld a,010h
+	rst 28h	
+	jp c,001c6h
+	jr z,$+32
+	pop hl	
+	cp 0d5h
+	ret z	
+	ld (040f9h),de
+	call 01af8h
+	ld hl,(040a2h)
+	ld a,h	
+	and l	
+	inc a	
+	ld hl,01d1eh
+	push hl	
+	jp nz,01b5dh
+	call 01b5dh
+	jp 01a33h
+	cp 063h
+	jr nz,$+10
+	ld b,a	
+	ld a,(005c9h)
+	or a	
+	jr nz,$-35
+	ld a,b	
+	jp 001cfh
+	call 02337h
+	push hl	
+	call 0050fh
+	ld de,00606h
+	call 00527h
+	call 0051eh
+	jr $+9
+	rst 10h	
+	jr nz,$-19
+	push hl	
+	ld hl,00604h
+	push hl	
+	ld hl,0ffech
+	add hl,sp	
+	ld de,004e9h
+	ld a,002h
+	rst 28h	
+	pop hl	
+	ld de,(040fdh)
+	ld c,000h
+	ld a,010h
+	rst 28h	
+	jp c,001c6h
+	cp 063h
+	jp nz,001cfh
+	ld hl,(040fdh)
+	ld bc,0ffffh
+	call 00127h
+	ld hl,(040a2h)
+	inc hl	
+	ld a,h	
+	or l	
+	pop hl	
+	ret nz	
+	pop af	
+	jp 01a19h
+	ld a,(hl)	
+	inc hl	
+	or (hl)	
+	inc hl	
+	ret z	
+	ld e,(hl)	
+	inc hl	
+	ld d,(hl)	
+	inc hl	
+	ex de,hl	
+	sbc hl,bc
+	add hl,bc	
+	jr z,$+3
+	ret nc	
+	call 0014dh
+	ex de,hl	
+	push bc	
+	call 02b7eh
+	pop bc	
+	push hl	
+	ld hl,(040a7h)
+	call 02b75h
+	call 0065fh
+	pop hl	
+	jr $-36
+	push de	
+	push bc	
+	call 00fafh
+	ld a,020h
+	call 0032ah
+	pop bc	
+	pop de	
+	ret	
+	rst 10h	
+	call 01b10h
+	ex (sp),hl	
+	push hl	
+	push bc	
+	call 0017bh
+	jp c,001c6h
+	ld (0409ch),a
+	pop hl	
+	pop bc	
+	call 00127h
+	ld a,028h
+	rst 28h	
+	xor a	
+	ld (00631h),a
+	ld (0409ch),a
+	jr $-94
+	ld a,(005fbh)
+	ld c,a	
+	ld a,020h
+	rst 28h	
+	ret c	
+	ld c,007h
+	ld a,024h
+	rst 28h	
+	ld a,00ch
+	rst 28h	
+	add a,a	
+	ld a,000h
+	ld (00632h),a
+	ld a,010h
+	ld (00631h),a
+	ret	
+	rst 10h	
+	cp 0aeh
+	call z,00010h
+	call 02337h
+	push hl	
+	ld de,004f7h
+	ld a,002h
+	rst 28h	
+	call 0051bh
+	ld de,(040a4h)
+	ld c,00eh
+	ld a,012h
+	rst 28h	
+	jr c,$+13
+	jr z,$+26
+	ld (00630h),a
+	or a	
+	jp nz,00447h
+	pop hl	
+	ret	
+	ld a,(0062ch)
+	or a	
+	jr nz,$+4
+	ld a,064h
+	ld e,a	
+	call 004dah
+	jp 019a2h
+	add a,064h
+	jr c,$-9
+	ld (0062ch),a
+	call 00586h
+	jr $-17
+	rst 28h	
+	jr c,$-22
+	jr z,$-15
+	cp 001h
+	call z,00586h
+	ret	
+	rst 10h	
+	push hl	
+	push af	
+	ld a,(0062dh)
+	or a	
+	jr z,$+7
+	call 00591h
+	jr $+7
+	ld a,01ah
+	rst 28h	
+	jr c,$-49
+	pop af	
+	jr z,$+23
+	push hl	
+	call 02828h
+	pop de	
+	ld hl,(040a7h)
+	ld a,(de)	
+	inc de	
+	ld (hl),a	
+	inc hl	
+	or a	
+	jr nz,$-5
+	ld (040a9h),a
+	jp 021c3h
+	push hl	
+	call 020f9h
+	pop hl	
+	call 028a7h
+	pop hl	
+	ret	
+	ld de,005c9h
+	ld (0060fh),de
+	rst 10h	
+	cp 0aeh
+	jr z,$+38
+	cp 0b7h
+	jr nz,$+10
+	rst 10h	
+	ld de,005c2h
+	ld (0060fh),de
+	push hl	
+	ld a,0d1h
+	ld (005c9h),a
+	ld hl,(040a4h)
+	ld (005ceh),hl
+	ex de,hl	
+	ld hl,(040f9h)
+	or a	
+	sbc hl,de
+	ld (005cch),hl
+	jr $+21
+	rst 10h	
+	push hl	
+	ld a,0d5h
+	ld (005c9h),a
+	ld hl,01800h
+	ld (005cch),hl
+	ld h,(ix+008h)
+	ld (005ceh),hl
+	pop hl	
+	call 02337h
+	push hl	
+	call 0051bh
+	ld de,(0060fh)
+	ld a,00eh
+	call 001dbh
+	pop hl	
+	ret	
+	rst 10h	
+	ld de,005fch
+	call 0050fh
+	push hl	
+	call 00527h
+	pop hl	
+	call 02337h
+	push hl	
+	call 0051eh
+	ld a,018h
+	jr $-26
+	rst 10h	
+	ld de,005ffh
+	jr $-23
+	rst 10h	
+	jp nz,01997h
+	xor a	
+	ld (0062dh),a
+	call 00354h
+	push hl	
+	ld hl,00602h
+	jr $-25
+	rst 10h	
+	cp 02ch
+	jr z,$+22
+	call 02b1ch
+	cp 008h
+	jp c,01e4ah
+	cp 00ch
+	jp nc,01e4ah
+	ld (005fah),a
+	ld a,(hl)	
+	cp 02ch
+	ret nz	
+	rst 10h	
+	call 02b1ch
+	cp 004h
+	jr z,$+7
+	cp 005h
+	jp nz,01e4ah
+	ld (005fbh),a
+	ret	
+	ld e,05ch
+	ld bc,05a1eh
+	jp 019a2h
+	ld a,052h
+	ld bc,0573eh
+	ld bc,0413eh
+	ld bc,0443eh
+	push af	
+	rst 10h	
+	call 0059bh
+	jr z,$-24
+	ld c,000h
+	call 005ach
+	jr nz,$-28
+	push de	
+	rst 8	
+	inc l	
+	call 02337h
+	ld (0060fh),hl
+	call 0051bh
+	pop de	
+	pop af	
+	push af	
+	cp 044h
+	jr z,$+18
+	push de	
+	ld de,00609h
+	call 00527h
+	pop de	
+	pop af	
+	push af	
+	ld bc,(0060dh)
+	ld (bc),a	
+	inc (hl)	
+	ld bc,(005f9h)
+	ld a,014h
+	call 001dbh
+	ld hl,00634h
+	ld a,02ch
+	cp (hl)	
+	inc hl	
+	jr nz,$-2
+	ld a,(hl)	
+	cp 04ch
+	jr nz,$+4
+	pop bc	
+	push af	
+	pop af	
+	ld (de),a	
+	ld a,(005f9h)
+	inc de	
+	ld (de),a	
+	xor a	
+	inc de	
+	ld (de),a	
+	ld a,(005fah)
+	inc de	
+	ld (de),a	
+	ld hl,(0060fh)
+	ret	
+	rst 10h	
+	call 0059bh
+	ret nz	
+	ex de,hl	
+	ld (hl),080h
+	inc hl	
+	ld (hl),000h
+	inc hl	
+	inc hl	
+	push bc	
+	ld c,(hl)	
+	ld a,006h
+	rst 28h	
+	pop bc	
+	ld a,016h
+	call 001dbh
+	ex de,hl	
+	ret	
+	rst 10h	
+	ex de,hl	
+	ld hl,005d1h
+	ld b,005h
+	ld a,(005fah)
+	inc hl	
+	inc hl	
+	inc hl	
+	cp (hl)	
+	call z,0036bh
+	inc hl	
+	djnz $-8
+	ld c,00fh
+	jr $-29
+	push hl	
+	dec hl	
+	dec hl	
+	ld (hl),000h
+	dec hl	
+	ld (hl),080h
+	pop hl	
+	ret	
+	rst 10h	
+	cp 023h
+	call z,003d3h
+	call nz,003e9h
+	call 0260dh
+	push hl	
+	rst 20h	
+	jp nz,00af6h
+	push af	
+	push de	
+	ld de,(040a7h)
+	ld (005beh),de
+	call 00426h
+	ld de,005bdh
+	call 02888h
+	pop hl	
+	pop af	
+	call 003abh
+	pop hl	
+	ld a,(hl)	
+	cp 02ch
+	jr nz,$+5
+	rst 10h	
+	jr $-39
+	ld a,02ah
+	rst 28h	
+	ret	
+	push hl	
+	jp 01f33h
+	rst 10h	
+	call 02828h
+	call 003d3h
+	push hl	
+	ld b,0fah
+	ld de,(040a7h)
+	call 00426h
+	ld a,(de)	
+	cp 00dh
+	jr z,$+5
+	inc de	
+	djnz $-9
+	xor a	
+	ld (de),a	
+	ld (040a9h),a
+	ld a,02ah
+	rst 28h	
+	jp 021c3h
+	rst 8	
+	inc hl	
+	call 0059bh
+	jr nz,$+108
+	rst 8	
+	inc l	
+	call 0040fh
+	jr nz,$+104
+	ld (0060fh),de
+	inc de	
+	ld a,(de)	
+	jr $+19
+	ld de,00633h
+	ld (0060fh),de
+	xor a	
+	ld (de),a	
+	ld a,00fh
+	ld (005f9h),a
+	ld a,(005fah)
+	ld c,a	
+	ld a,022h
+	rst 28h	
+	jp c,001c6h
+	ld bc,(005f9h)
+	ld a,026h
+	rst 28h	
+	cp a	
+	ret	
+	ld a,(de)	
+	sub 04ch
+	jr z,$+15
+	ld a,(de)	
+	cp 04ch
+	jr z,$+10
+	cp 044h
+	jr z,$+6
+	cp 052h
+	jr nz,$+39
+	inc de	
+	inc de	
+	sub 04ch
+	jr nz,$+3
+	ld (de),a	
+	ld a,(de)	
+	or a	
+	ret	
+	ld hl,(0060fh)
+	ld a,(hl)	
+	or a	
+	jr nz,$+28
+	ld a,01ch
+	push bc	
+	rst 28h	
+	pop bc	
+	jp c,001c6h
+	ld (de),a	
+	ld a,00ch
+	rst 28h	
+	and 040h
+	ret z	
+	ld b,001h
+	ld (hl),0ffh
+	ret	
+	ld e,060h
+	ld bc,05e1eh
+	ld bc,02a1eh
+	jp 019a2h
+	call 00b37h
+	ld hl,(04121h)
+	ld a,h	
+	or a	
+	jp nz,01e4ah
+	ld a,l	
+	cp 002h
+	jp c,01e4ah
+	cp 00fh
+	jp nc,01e4ah
+	ld c,l	
+	call 005ach
+	jr nz,$-34
+	call 0040ah
+	ld h,a	
+	ld l,a	
+	ld (04121h),hl
+	ret	
+	rst 10h	
+	call 0017bh
+	jp c,001c6h
+	jp 02098h
+	rst 10h	
+	cp 023h
+	jr z,$+12
+	ld a,00fh
+	ld (005f9h),a
+	ld a,(005fah)
+	jr $+23
+	rst 10h	
+	call 0059bh
+	jr nz,$-74
+	dec hl	
+	rst 10h	
+	jr z,$+4
+	rst 8	
+	inc l	
+	ld a,(de)	
+	cp 052h
+	jr z,$-88
+	inc de	
+	inc de	
+	inc de	
+	ld a,(de)	
+	ld c,a	
+	ld a,020h
+	rst 28h	
+	jr c,$+30
+	ld bc,(005f9h)
+	ld a,024h
+	rst 28h	
+	ld a,090h
+	ld (00631h),a
+	jp 02098h
+	ld a,(00631h)
+	or a	
+	ret z	
+	call p,004c8h
+	jr z,$+8
+	ld a,01eh
+	rst 28h	
+	jp c,001c6h
+	ld a,c	
+	pop bc	
+	pop bc	
+	ret	
+	ld a,(00632h)
+	inc c	
+	dec c	
+	jr nz,$+7
+	cpl	
+	ld (00632h),a
+	ret	
+	or a	
+	ret nz	
+	ld a,02ch
+	rst 28h	
+	ret	
+	ld a,(00631h)
+	or a	
+	ret z	
+	push bc	
+	ld a,028h
+	rst 28h	
+	pop bc	
+	xor a	
+	ld (00631h),a
+	ret	
+	ld a,01ch
+	rst 28h	
+	ld a,0ddh
+	ld (005c9h),a
+	ld hl,0ffffh
+	ld c,020h
+	ret	
+	cp 0d9h
+	jr z,$+9
+	ld a,02ah
+	ld (0062ch),a
+	scf	
+	ret	
+	ld h,007h
+	ld a,01ch
+	rst 28h	
+	jr c,$-12
+	dec h	
+	jr nz,$-6
+	ld c,002h
+	ret	
+	push hl	
+	ld hl,00634h
+	ld (hl),000h
+	inc hl	
+	ld (0060dh),hl
+	pop hl	
+	ret	
+	call 0050fh
+	call 029d7h
+	ld a,(hl)	
+	inc hl	
+	ld e,(hl)	
+	inc hl	
+	ld d,(hl)	
+	ld bc,0131ah
+	or a	
+	jr z,$+17
+	push af	
+	ld b,000h
+	ld c,a	
+	ld hl,(0060dh)
+	ex de,hl	
+	ldir
+	ld (0060dh),de
+	pop af	
+	ld hl,00634h
+	add a,(hl)	
+	ld (hl),a	
+	ret	
+	push af	
+	ld a,e	
+	cp 05ah
+	jr nc,$+28
+	cp 02ah
+	jr nz,$+20
+	ld a,(00630h)
+	or a	
+	jr z,$+14
+	push hl	
+	ld h,000h
+	ld l,a	
+	call 0014dh
+	pop hl	
+	xor a	
+	ld (00630h),a
+	pop af	
+	ret	
+	nop	
+	nop	
+	cp 064h
+	jr z,$+22
+	jr c,$+15
+	pop af	
+	pop af	
+	ld a,007h
+	call 0032ah
+	call 00591h
+	jp 01a01h
+	ld hl,005b7h
+	pop af	
+	ret	
+	pop af	
+	pop af	
+	ld a,007h
+	call 0032ah
+	ld hl,00619h
+	jp 01a01h
+	ld (0062eh),hl
+	push af	
+	ld a,001h
+	ld (0062dh),a
+	pop af	
+	ret	
+	ld hl,(0062eh)
+	push af	
+	xor a	
+	ld (0062dh),a
+	pop af	
+	ret	
+	call 02b1ch
+	cp 002h
+	jp c,01e4ah
+	cp 00fh
+	jp nc,01e4ah
+	ld c,a	
+	ld (005f9h),a
+	ld de,005d1h
+	ld b,00ah
+	inc de	
+	ld a,(de)	
+	dec de	
+	cp c	
+	ret z	
+	inc de	
+	inc de	
+	inc de	
+	inc de	
+	djnz $-9
+	ret	
+	ld bc,00000h
+	nop	
+	nop	
+	exx	
+	and d	
+	ld b,b	
+	ld (bc),a	
+	nop	
+	ret nz	
+	dec b	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	ret	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	nop	
+	ex af,af'	
+	inc b	
+	ld (bc),a	
+	ld c,(hl)	
+	ld a,(05302h)
+	ld a,(04901h)
+	ld bc,00224h
+	inc h	
+	ld a,(02c03h)
+	ld d,e	
+	inc l	
+	nop	
+	nop	
+	nop	
+	nop	
+	ld b,d	
+	ld c,a	
+	ld b,(hl)	
+	ld c,a	
+	ld c,(hl)	
+	ld c,a	
+	ld b,d	
+	ld b,h	
+	ld b,h	
+	ld b,l	
+	ld d,(hl)	
+	ld c,c	
+	ld b,e	
+	ld b,l	
+	jr nz,$+80
+	ld c,a	
+	ld d,h	
+	jr nz,$+82
+	ld d,d	
+	ld b,l	
+	ld d,e	
+	ld b,l	
+	ld c,(hl)	
+	ld d,h	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	ld a,010h
+	ld hl,00651h
+	ret	
+	ld (00b8dh),de
+	ld (00b8fh),hl
+	ret	
+	ld hl,(00b8fh)
+	ld de,(00b8dh)
+	ret	
+	ld a,c	
+	ld (00b86h),a
+	ret	
+	ld a,(00b86h)
+	ret	
+	ld a,c	
+	ld (00b87h),a
+	ret	
+	ld a,(00b87h)
+	ret	
+	ei	
+	ld a,(0403bh)
+	or 080h
+	ld (0403bh),a
+	out (000h),a
+	ret	
+	di	
+	ld a,(0403bh)
+	and 07fh
+	ld (0403bh),a
+	out (000h),a
+	ret	
+	in a,(040h)
+	and 010h
+	jr z,$+9
+	in a,(040h)
+	and 010h
+	ret nz	
+	jr $-11
+	in a,(040h)
+	and 010h
+	ret z	
+	jr $-18
+	in a,(000h)
+	and 002h
+	call nz,0067ah
+	in a,(040h)
+	and 010h
+	jr z,$-11
+	in a,(040h)
+	and 010h
+	scf	
+	ret nz	
+	jr $-19
+	in a,(040h)
+	and 010h
+	jr nz,$-4
+	in a,(040h)
+	and 010h
+	ret z	
+	jr $-11
+	in a,(040h)
+	and 020h
+	jr z,$-4
+	in a,(040h)
+	bit 5,a
+	ret nz	
+	jr $-11
+	ld a,(00b88h)
+	and 0dfh
+	out (064h),a
+	ld (00b88h),a
+	ret	
+	ld a,(00b88h)
+	or 020h
+	jr $-11
+	ld a,(00b88h)
+	and 0efh
+	jr $-18
+	ld a,(00b88h)
+	or 010h
+	jr $-25
+	ld a,(00b88h)
+	and 0fdh
+	jr $-32
+	ld a,(00b88h)
+	or 002h
+	jr $-39
+	call 00686h
+	call 006e0h
+	call 006fch
+	ld a,05fh
+	ld bc,03f3eh
+	call 0072ah
+	call 006f5h
+	ld b,00ah
+	djnz $+0
+	call 006d5h
+	jr $-55
+	ld a,040h
+	jr $+4
+	ld a,020h
+	or c	
+	push af	
+	jr $+11
+	push af	
+	ld a,(00b89h)
+	or a	
+	scf	
+	call nz,007b2h
+	xor a	
+	ld (00b89h),a
+	pop af	
+	ld (00b8ah),a
+	call 00686h
+	call 006e7h
+	call 006fch
+	call 00686h
+	call 006e0h
+	call 006e7h
+	ld b,038h
+	ld c,002h
+	in a,(040h)
+	and 010h
+	jr z,$+7
+	djnz $-8
+	jp 00861h
+	dec c	
+	jr nz,$-12
+	jr $+83
+	ld a,c	
+	or 060h
+	ld (00b8ah),a
+	call 00744h
+	ret c	
+	call 00686h
+	call 006eeh
+	call 006f5h
+	ld b,005h
+	djnz $+0
+	call 006d5h
+	in a,(000h)
+	and 002h
+	call nz,0067ah
+	in a,(040h)
+	and 020h
+	jr nz,$-11
+	in a,(040h)
+	and 020h
+	jr nz,$-17
+	call 0067ah
+	ret	
+	ld a,c	
+	or 060h
+	ld (00b8ah),a
+	call 00744h
+	jp 006f5h
+	ld a,(00b89h)
+	or a	
+	push bc	
+	call nz,007b2h
+	pop bc	
+	ret c	
+	ld a,0ffh
+	ld (00b89h),a
+	ld a,c	
+	ld (00b8ah),a
+	ret	
+	push af	
+	call 00686h
+	call 006e7h
+	call 00692h
+	jp nz,00860h
+	call 006d5h
+	pop af	
+	call c,006a6h
+	call c,006bbh
+	call 006a6h
+	call 006e0h
+	ld bc,(00b8ah)
+	ld b,008h
+	call 00692h
+	jp z,00865h
+	srl c
+	call nc,006eeh
+	call c,006e7h
+	call 006d5h
+	call 006e0h
+	call 006e7h
+	djnz $-23
+	ld b,01bh
+	call 00692h
+	jr z,$+6
+	djnz $-5
+	jr $+110
+	call 0067ah
+	ret	
+	call 00686h
+	ld c,000h
+	call 006d5h
+	call 006c8h
+	call 006e7h
+	ld b,00fh
+	in a,(040h)
+	and 020h
+	jr z,$+32
+	in a,(040h)
+	and 020h
+	jr z,$-10
+	djnz $-12
+	dec c	
+	jp p,00865h
+	call 006eeh
+	call 006d5h
+	ld a,(00b87h)
+	or 040h
+	ld (00b87h),a
+	inc c	
+	inc c	
+	jr $-39
+	in a,(040h)
+	and 020h
+	jr nz,$-40
+	ld b,008h
+	call 006c8h
+	add a,a	
+	add a,a	
+	add a,a	
+	add a,a	
+	rr c
+	in a,(040h)
+	and 020h
+	jr nz,$-4
+	in a,(040h)
+	and 020h
+	jr nz,$-10
+	djnz $-21
+	call 006eeh
+	ld a,(00b87h)
+	bit 6,a
+	call nz,00717h
+	call 0067ah
+	ld a,c	
+	ret	
+	pop af	
+	ld a,080h
+	jr $+4
+	ld a,003h
+	push hl	
+	ld hl,00b87h
+	or (hl)	
+	ld (hl),a	
+	call 0067ah
+	call 00714h
+	ld a,(hl)	
+	pop hl	
+	scf	
+	ret	
+	ld a,c	
+	and 0efh
+	or 0e0h
+	ld c,a	
+	push bc	
+	ld bc,(00b86h)
+	ld a,020h
+	rst 28h	
+	pop bc	
+	ld a,024h
+	rst 28h	
+	ld a,028h
+	rst 28h	
+	ld a,(00b87h)
+	ld b,a	
+	and 0bfh
+	ld a,b	
+	jr $+39
+	ld a,c	
+	or 0f0h
+	ld c,a	
+	push bc	
+	xor a	
+	ld (00b87h),a
+	ld bc,(00b86h)
+	ld a,020h
+	rst 28h	
+	pop bc	
+	ld a,024h
+	rst 28h	
+	ld a,(00b87h)
+	or a	
+	scf	
+	ret nz	
+	call 008bfh
+	ret c	
+	ld a,028h
+	rst 28h	
+	ld a,(00b87h)
+	or a	
+	scf	
+	ret nz	
+	jp 00aa1h
+	ld a,(hl)	
+	inc hl	
+	or a	
+	ret z	
+	ld b,a	
+	ld c,(hl)	
+	inc hl	
+	ld a,01eh
+	rst 28h	
+	ret c	
+	djnz $-6
+	ret	
+	xor a	
+	ld (00b8bh),a
+	ld a,c	
+	ld (00b93h),a
+	ld (00b91h),de
+	ld c,000h
+	ld a,014h
+	rst 28h	
+	ret c	
+	ret z	
+	ld bc,(00b86h)
+	ld a,022h
+	rst 28h	
+	ret c	
+	ld c,000h
+	ld a,026h
+	rst 28h	
+	call 00937h
+	jr nc,$+7
+	ld a,01ah
+	rst 28h	
+	ret c	
+	ret z	
+	ld a,02ah
+	rst 28h	
+	ld c,000h
+	ld a,016h
+	rst 28h	
+	ret c	
+	ret z	
+	ld a,(00b94h)
+	ret	
+	bit 4,c
+	jr z,$+92
+	call 009e8h
+	ret c	
+	ld de,(00b91h)
+	ld bc,00932h
+	push bc	
+	ld a,(00b8bh)
+	or a	
+	ret nz	
+	jp (hl)	
+	bit 3,c
+	jr z,$+70
+	call 009e8h
+	ret c	
+	push hl	
+	call 008f7h
+	jr c,$+7
+	jr z,$+5
+	pop hl	
+	jr $-23
+	pop bc	
+	pop bc	
+	ret	
+	ret	
+	ld (00b91h),de
+	ex de,hl	
+	ld a,01ch
+	rst 28h	
+	ret c	
+	ld bc,(00b93h)
+	cp 0cdh
+	jr z,$-60
+	cp 0c3h
+	jr z,$-42
+	cp 0c9h
+	jr z,$-24
+	ld (00b94h),a
+	cp 0d9h
+	jr z,$+44
+	cp 0d5h
+	jr z,$+46
+	cp 0d1h
+	jr z,$+39
+	cp 0ddh
+	jr nz,$+7
+	bit 5,c
+	ex de,hl	
+	jr nz,$+44
+	ld hl,0096fh
+	push hl	
+	ld hl,(00b8dh)
+	ld de,(00b91h)
+	jp (hl)	
+	ld (00b91h),de
+	jr nc,$-52
+	pop bc	
+	call 008f7h
+	ret z	
+	scf	
+	ret	
+	bit 0,c
+	ld hl,049cbh
+	ld hl,051cbh
+	jr z,$-33
+	call 009e8h
+	call nc,009deh
+	ret c	
+	ld a,01ch
+	rst 28h	
+	ret c	
+	ld b,a	
+	ld a,(00b8bh)
+	or a	
+	jr nz,$+57
+	ld a,h	
+	cp (ix+008h)
+	ld a,b	
+	jr nc,$+12
+	ld bc,(00b8fh)
+	or a	
+	sbc hl,bc
+	add hl,bc	
+	jr nc,$+30
+	ld (hl),a	
+	inc hl	
+	dec de	
+	ld a,d	
+	or e	
+	jr z,$-120
+	ld a,(00b87h)
+	bit 6,a
+	jr z,$-40
+	pop bc	
+	ex de,hl	
+	call 008f7h
+	ret c	
+	ret z	
+	ld hl,00b71h
+	ld a,063h
+	cp a	
+	ret	
+	pop bc	
+	call 008f7h
+	ret c	
+	ret z	
+	ld a,0a8h
+	cp a	
+	ret	
+	ld a,b	
+	cp (hl)	
+	jr z,$-39
+	ld a,(00b8ch)
+	inc a	
+	jr z,$-45
+	ld (00b8ch),a
+	jr $-50
+	ld a,01ch
+	rst 28h	
+	ret c	
+	ld e,a	
+	ld a,01ch
+	rst 28h	
+	ld d,a	
+	ret	
+	call 009deh
+	ret c	
+	ld a,(00b94h)
+	cp 0d9h
+	ld h,d	
+	ld l,e	
+	ret z	
+	ld hl,(00b91h)
+	add hl,de	
+	cp 0d1h
+	ret z	
+	ld h,(ix+008h)
+	ld l,000h
+	add hl,de	
+	and a	
+	ret	
+	xor a	
+	ld (00b8ch),a
+	inc a	
+	call 008ceh
+	ret c	
+	ret z	
+	ld a,(00b8ch)
+	ret	
+	ld (00b8bh),de
+	ld c,001h
+	ld a,014h
+	rst 28h	
+	ret c	
+	ret z	
+	ld bc,(00b86h)
+	ld a,020h
+	rst 28h	
+	ret c	
+	ld c,001h
+	ld a,024h
+	rst 28h	
+	call 00a4ah
+	jr nc,$+7
+	ld a,01ah
+	rst 28h	
+	ret c	
+	ret z	
+	ld a,028h
+	rst 28h	
+	ld c,001h
+	ld a,016h
+	rst 28h	
+	ret	
+	ld a,01eh
+	rst 28h	
+	ld c,(hl)	
+	inc hl	
+	call nc,0079eh
+	ret c	
+	ld c,(hl)	
+	ld a,01eh
+	rst 28h	
+	ret	
+	ld hl,(00b8bh)
+	ld b,004h
+	ld c,(hl)	
+	inc hl	
+	ld a,c	
+	cp 0c9h
+	jr z,$-14
+	cp 0c3h
+	jr z,$-28
+	ld a,01eh
+	rst 28h	
+	ret c	
+	ld c,(hl)	
+	inc hl	
+	ld a,01eh
+	rst 28h	
+	ret c	
+	djnz $-6
+	ld d,h	
+	ld e,l	
+	dec hl	
+	ld a,(hl)	
+	dec hl	
+	ld l,(hl)	
+	ld h,a	
+	ex de,hl	
+	ld c,(hl)	
+	inc hl	
+	ld a,(hl)	
+	inc hl	
+	ld (00b8bh),hl
+	ld h,a	
+	ld l,c	
+	ld a,d	
+	or e	
+	jr z,$-47
+	ld c,(hl)	
+	inc hl	
+	ld a,01eh
+	rst 28h	
+	ret c	
+	dec de	
+	jr $-11
+	xor a	
+	ld (00b87h),a
+	ld bc,(00b86h)
+	ld a,020h
+	rst 28h	
+	ld c,00fh
+	ld a,024h
+	rst 28h	
+	ld a,(00b87h)
+	or a	
+	scf	
+	ret nz	
+	call 008bfh
+	ret c	
+	ld a,028h
+	rst 28h	
+	ld a,(00b87h)
+	push af	
+	xor a	
+	ld (00b87h),a
+	ld bc,(00b86h)
+	ld a,022h
+	rst 28h	
+	jr c,$+56
+	ld c,00fh
+	ld a,026h
+	rst 28h	
+	ld hl,00b96h
+	ld a,01ch
+	rst 28h	
+	jr c,$+43
+	ld (hl),a	
+	inc hl	
+	ld a,(00b87h)
+	bit 6,a
+	jr z,$-12
+	dec hl	
+	ld (hl),000h
+	ld a,02ah
+	rst 28h	
+	pop af	
+	ld (00b87h),a
+	ld hl,00b96h
+	ld a,(hl)	
+	sub 030h
+	add a,a	
+	ld b,a	
+	add a,a	
+	add a,a	
+	add a,b	
+	inc hl	
+	add a,(hl)	
+	sub 030h
+	dec hl	
+	cp 002h
+	ccf	
+	ret nc	
+	cp a	
+	ret	
+	pop bc	
+	ret	
+	inc c	
+	dec c	
+	ret z	
+	ld a,c	
+	cp 041h
+	jr c,$+18
+	cp 05bh
+	jr c,$+10
+	cp 061h
+	jr c,$+10
+	cp 07bh
+	jr nc,$+6
+	xor 020h
+	ld c,a	
+	ret	
+	push hl	
+	ld hl,00b15h
+	ld a,(hl)	
+	inc hl	
+	inc hl	
+	or a	
+	jr z,$+7
+	cp c	
+	jr nz,$-7
+	dec hl	
+	ld c,(hl)	
+	pop hl	
+	or 001h
+	ret	
+	ld e,049h
+	rra	
+	ld e,(hl)	
+	ld b,b	
+	ld h,l	
+	ld e,e	
+	ld c,a	
+	ld e,h	
+	ld l,a	
+	ld e,l	
+	ld h,c	
+	ld e,(hl)	
+	ld (hl),l	
+	ld e,a	
+	ld d,l	
+	ld h,b	
+	ld b,l	
+	ld a,e	
+	ld c,a	
+	ld a,h	
+	ld c,a	
+	ld a,l	
+	ld b,c	
+	ld a,(hl)	
+	ld d,l	
+	ld a,a	
+	ld d,l	
+	nop	
+	push hl	
+	push bc	
+	ld hl,00b42h
+	ld b,000h
+	ld c,a	
+	add hl,bc	
+	ld c,(hl)	
+	inc hl	
+	ld h,(hl)	
+	ld l,c	
+	pop bc	
+	ex (sp),hl	
+	ret	
+	ld d,d	
+	ld b,058h
+	ld b,060h
+	ld b,068h
+	ld b,06dh
+	ld b,071h
+	ld b,076h
+	ld b,011h
+	ld a,(bc)	
+	call 00308h
+	ld a,(bc)	
+	sub l	
+	ex af,af'	
+	ld (hl),a	
+	ex af,af'	
+	add a,h	
+	ld a,(bc)	
+	and c	
+	ld a,(bc)	
+	defb 0fdh,007h,09eh	;illegal sequence
+	rlca	
+	inc h	
+	rlca	
+	jr nz,$+9
+	sub d	
+	rlca	
+	ld h,c	
+	rlca	
+	rrca	
+	rlca	
+	inc bc	
+	rlca	
+	jp pe,02c0ah
+	add hl,sp	
+	add hl,sp	
+	inc l	
+	ld b,l	
+	ld c,(hl)	
+	ld b,h	
+	jr nz,$+81
+	ld b,(hl)	
+	jr nz,$+72
+	ld c,c	
+	ld c,h	
+	ld b,l	
+	inc l	
+	jr nc,$+50
+	inc l	
+	jr nc,$+50
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	jr nz,$+10
+	ld (de),a	
+	inc b	
+	nop	
+	ex af,af'	
+	add a,d	
+	jr nz,$+34
+	ld (de),a	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	djnz $-108
+	ld b,b	
+	nop	
+	jr nz,$-122
+	djnz $+68
+	ex af,af'	
+	ld hl,01084h
+	ld b,d	
+	ex af,af'	
+	ld hl,01084h
+	nop	
+	nop	
+	add a,c	
+	inc b	
+	ld b,b	
+	nop	
+	nop	
+	nop	
+	nop	
+	ld b,b	
+	jr nz,$-110
+	inc h	
+	ld b,b	
+	ld b,b	
+	nop	
+	ld b,b	
+	ex af,af'	
+	djnz $+2
+	nop	
+	nop	
+	ex af,af'	
+	nop	
+	nop	
+	nop	
+	nop	
+	jr nz,$+3
+	add a,c	
+	add a,b	
+	nop	
+	nop	
+	add a,h	
+	nop	
+	jr nz,$+10
+	nop	
+	adc a,b	
+	djnz $+34
+	add a,b	
+	inc b	
+	ld b,b	
+	jr nz,$+10
+	nop	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	ex af,af'	
+	nop	
+	ld de,00104h
+	inc b	
+	ex af,af'	
+	add a,d	
+	add a,b	
+	ex af,af'	
+	ld b,c	
+	ld (02020h),hl
+	add a,b	
+	ld b,h	
+	nop	
+	nop	
+	jr nz,$+2
+	nop	
+	ld (bc),a	
+	nop	
+	nop	
+	inc b	
+	ld (bc),a	
+	sub b	
+	nop	
+	inc h	
+	djnz $-122
+	inc b	
+	nop	
+	djnz $+18
+	ld b,d	
+	nop	
+	nop	
+	inc b	
+	ld b,d	
+	jr nz,$+2
+	nop	
+	sub b	
+	nop	
+	nop	
+	sub d	
+	add a,b	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	ld (bc),a	
+	nop	
+	nop	
+	ld (bc),a	
+	ld b,c	
+	jr nz,$+4
+	add hl,bc	
+	ld b,h	
+	nop	
+	nop	
+	nop	
+	nop	
+	inc b	
+	ld b,b	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	djnz $+66
+	ld (bc),a	
+	ld b,b	
+	add a,d	
+	nop	
+	nop	
+	nop	
+	inc b	
+	inc b	
+	ld hl,01020h
+	djnz $+66
+	nop	
+	ld (bc),a	
+	inc b	
+	nop	
+	ld (bc),a	
+	nop	
+	djnz $-122
+	nop	
+	nop	
+	djnz $-118
+	nop	
+	add a,b	
+	nop	
+	ld b,d	
+	nop	
+	nop	
+	inc b	
+	ld bc,00410h
+	ld hl,00004h
+	jr nz,$+3
+	nop	
+	nop	
+	inc b	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	ld hl,02111h
+	ld b,d	
+	inc b	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	ld b,b	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	ld (bc),a	
+	ld de,00408h
+	ld (bc),a	
+	add a,c	
+	inc h	
+	jr nz,$-125
+	nop	
+	add a,b	
+	djnz $-109
+	inc h	
+	ld c,c	
+	nop	
+	jr nz,$+2
+	adc a,c	
+	inc h	
+	djnz $+10
+	nop	
+	inc b	
+	sub d	
+	add a,h	
+	ld b,b	
+	add a,h	
+	inc h	
+	adc a,c	
+	inc h	
+	ld de,09212h
+	inc h	
+	djnz $+34
+	ld b,d	
+	ld (de),a	
+	nop	
+	nop	
+	ld c,c	
+	ld b,d	
+	nop	
+	jr nz,$+2
+	nop	
+	sub b	
+	sub b	
+	nop	
+	djnz $+20
+	nop	
+	ex af,af'	
+	nop	
+	ld bc,00880h
+	jr nz,$+10
+	inc b	
+	ld bc,04400h
+	inc b	
+	jr nz,$+2
+	ld (bc),a	
+	nop	
+	jr nz,$+34
+	inc h	
+	ld (bc),a	
+	ex af,af'	
+	ld bc,00080h
+	ld bc,00080h
+	nop	
+	add a,b	
+	adc a,b	
+	djnz $+6
+	nop	
+	inc h	
+	ld b,b	
+	nop	
+	djnz $+2
+	djnz $+34
+	inc b	
+	inc b	
+	add a,b	
+	jr nz,$+2
+	djnz $+3
+	ld bc,01100h
+	ld b,d	
+	nop	
+	ld (bc),a	
+	jr nz,$+2
+	nop	
+	jr nz,$+66
+	nop	
+	nop	
+	nop	
+	nop	
+	ld b,b	
+	nop	
+	nop	
+	ld (04100h),hl
+	jr nz,$+70
+	nop	
+	ex af,af'	
+	jr nz,$+2
+	ld c,b	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	add a,b	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	ld bc,0aaa0h
+	xor d	
+	xor d	
+	xor d	
+	xor d	
+	ld (bc),a	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	
+	nop	

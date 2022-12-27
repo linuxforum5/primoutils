@@ -1,0 +1,81 @@
+; z80dasm 1.1.6
+; command line: z80dasm -v -z -t -a -l -g 0x4329 s_4329.bin
+
+	org	04329h
+
+	ld de,042e9h		;4329	11 e9 42 	. . B  ; Innentől van az adattartalom
+	ld hl,0e800h		;432c	21 00 e8 	! . . 
+	ld a,008h		;432f	3e 08 	> . 
+l4331h:
+	push af			;4331	f5 	. 
+	push hl			;4332	e5 	. 
+	ld c,008h		;4333	0e 08 	. . 
+l4335h:
+	ld a,(de)			;4335	1a 	. 
+	push de			;4336	d5 	. 
+	ld de,0001eh		;4337	11 1e 00 	. . . 
+	ld b,018h		;433a	06 18 	. . 
+l433ch:
+	ld (hl),a			;433c	77 	w 
+	inc hl			;433d	23 	# 
+	ld (hl),a			;433e	77 	w 
+	inc hl			;433f	23 	# 
+	ld (hl),a			;4340	77 	w 
+	add hl,de			;4341	19 	. 
+	djnz l433ch		;4342	10 f8 	. . 
+	pop de			;4344	d1 	. 
+	inc de			;4345	13 	. 
+	dec c			;4346	0d 	. 
+	jr nz,l4335h		;4347	20 ec 	  . 
+	pop hl			;4349	e1 	. 
+	inc hl			;434a	23 	# 
+	inc hl			;434b	23 	# 
+	inc hl			;434c	23 	# 
+	pop af			;434d	f1 	. 
+	dec a			;434e	3d 	= 
+	jr nz,l4331h		;434f	20 e0 	  . 
+	ld hl,0e4e0h		;4351	21 e0 e4 	! . . 
+	ld a,004h		;4354	3e 04 	> . 
+l4356h:
+	push af			;4356	f5 	. 
+	ld a,080h		;4357	3e 80 	> . 
+	ld b,018h		;4359	06 18 	. . 
+	ld de,00300h		;435b	11 00 03 	. . . 
+	add hl,de			;435e	19 	. 
+	ld de,00020h		;435f	11 20 00 	.   . 
+l4362h:
+	add hl,de			;4362	19 	. 
+	ld (hl),a			;4363	77 	w 
+	djnz l4362h		;4364	10 fc 	. . 
+	pop af			;4366	f1 	. 
+	dec a			;4367	3d 	= 
+	jr nz,l4356h		;4368	20 ec 	  . 
+	ld hl,0e7f7h		;436a	21 f7 e7 	! . . 
+	ld a,004h		;436d	3e 04 	> . 
+l436fh:
+	push af			;436f	f5 	. 
+	ld a,001h		;4370	3e 01 	> . 
+	ld b,018h		;4372	06 18 	. . 
+	ld de,00300h		;4374	11 00 03 	. . . 
+	add hl,de			;4377	19 	. 
+	ld de,00020h		;4378	11 20 00 	.   . 
+l437bh:
+	add hl,de			;437b	19 	. 
+	ld (hl),a			;437c	77 	w 
+	djnz l437bh		;437d	10 fc 	. . 
+	pop af			;437f	f1 	. 
+	dec a			;4380	3d 	= 
+	jr nz,l436fh		;4381	20 ec 	  . 
+	ld a,0ffh		;4383	3e ff 	> . 
+	ld b,018h		;4385	06 18 	. . 
+	ld de,0e800h		;4387	11 00 e8 	. . . 
+	ld hl,0ffe0h		;438a	21 e0 ff 	! . . 
+l438dh:
+	ld (de),a			;438d	12 	. 
+	ld (hl),a			;438e	77 	w 
+	inc de			;438f	13 	. 
+	inc hl			;4390	23 	# 
+	djnz l438dh		;4391	10 fa 	. . 
+	ret			;4393	c9 	. 
+
+	end

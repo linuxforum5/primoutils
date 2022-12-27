@@ -2,7 +2,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
-#include <time.h>   /* Needed just for srand seed */
 
 int main() {
 	printf("Hello world! Perss any key");

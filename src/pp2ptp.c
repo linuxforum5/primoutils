@@ -4,6 +4,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,7 +38,7 @@ void write_ptp_name_block_record( FILE *ptp, char *name ) {
     for( ; length<17 && name[length]; length++ ) crc += name[length];
 
     unsigned char ptp_block_type = 0x55; // Ptp block
-    u_int16_t ptp_block_size = length + 4; // Name block size
+    uint16_t ptp_block_size = length + 4; // Name block size
     fwrite( &ptp_block_type, 1, 1, ptp );
     fwrite( &ptp_block_size, 2, 1, ptp );
     if ( verbose ) fprintf( stdout, "Create ptp block ( 0x%02X )\n", ptp_block_type );
@@ -46,18 +47,28 @@ void write_ptp_name_block_record( FILE *ptp, char *name ) {
     unsigned char blockIndex0 = 0;
     if ( verbose ) fprintf( stdout, "Create %2d. tape name record ( 0x%02X ). Name for load is '%s'\n", blockIndex0, tape_record_type, name );
     fwrite( &tape_record_type, 1, 1, ptp );
-    fwrite( &blockIndex0, 1, 1, ptp );
+    fwrite( &blockIndex0, 1, 1, ptp ); // Blokk sorszáma BCD formátumban. De itt kötelezően 0
     crc += length;
     fwrite( &length, 1, 1, ptp );
     fwrite( name, length, 1, ptp );
     fwrite( &crc, 1, 1, ptp );
 }
 
-void write_ptp_data_record( FILE *pp, FILE *ptp, u_int16_t loadAddress, unsigned char blockIndex0, unsigned char bytesCounter ) {
-    u_int16_t counter16 = bytesCounter ? bytesCounter : 256;
+unsigned char BCD( unsigned char binaryInput ) {
+    unsigned char bcdResult = 0;
+    unsigned char shift = 0;
+    while ( binaryInput > 0) {
+        bcdResult |= ( binaryInput % 10 ) << (shift++ << 2);
+        binaryInput /= 10;
+    }
+    return bcdResult;
+}
+
+void write_ptp_data_record( FILE *pp, FILE *ptp, uint16_t loadAddress, unsigned char blockIndex0, unsigned char bytesCounter ) {
+    uint16_t counter16 = bytesCounter ? bytesCounter : 256;
 
     unsigned char ptp_block_type = 0x55; // Ptp block
-    u_int16_t ptp_block_size = counter16 + 6; // Name block size
+    uint16_t ptp_block_size = counter16 + 6; // Name block size
     fwrite( &ptp_block_type, 1, 1, ptp );
     fwrite( &ptp_block_size, 2, 1, ptp );
     if ( verbose ) fprintf( stdout, "Create ptp block ( 0x%02X )\n", ptp_block_type );
@@ -66,7 +77,8 @@ void write_ptp_data_record( FILE *pp, FILE *ptp, u_int16_t loadAddress, unsigned
     unsigned char crc = blockIndex0;
     if ( verbose ) fprintf( stdout, "Create %2d. tape data record ( 0x%02X ) from %d bytes. Load address is 0x%04X\n", blockIndex0, tape_record_type, counter16, loadAddress );
     fwrite( &tape_record_type, 1, 1, ptp );
-    fwrite( &blockIndex0, 1, 1, ptp ); // Blokk sorszáma
+    unsigned char BCDindex = BCD( blockIndex0 );
+    fwrite( &BCDindex, 1, 1, ptp ); // Blokk sorszáma BCD formátumban
     fwrite( &loadAddress, 2, 1, ptp ); // Betöltési cím
     crc += loadAddress/256 + loadAddress%256;
     fwrite( &bytesCounter, 1, 1, ptp );
@@ -80,9 +92,9 @@ void write_ptp_data_record( FILE *pp, FILE *ptp, u_int16_t loadAddress, unsigned
 }
 
 // Write ptp and tape close blocks in one
-u_int16_t write_ptp_last_block_record( FILE *pp, FILE *ptp, u_int16_t startAddress, unsigned char blockIndex0 ) {
+uint16_t write_ptp_last_block_record( FILE *pp, FILE *ptp, uint16_t startAddress, unsigned char blockIndex0 ) {
     unsigned char ptp_block_type = 0xAA; // Last ptp block
-    u_int16_t ptp_block_size = 8; // Last block size
+    uint16_t ptp_block_size = 8; // Last block size
     fwrite( &ptp_block_type, 1, 1, ptp );
     fwrite( &ptp_block_size, 2, 1, ptp );
     unsigned char tape_record_type = 0xB9; // System last tape record, autostart
@@ -90,24 +102,25 @@ u_int16_t write_ptp_last_block_record( FILE *pp, FILE *ptp, u_int16_t startAddre
     if ( verbose ) fprintf( stdout, "Create last ptp block ( 0x%02X ). Start address is 0x%04X\n", ptp_block_type, startAddress );
     if ( verbose ) fprintf( stdout, "Create %2d. - last - tape record ( 0x%02X ).\n", blockIndex0, tape_record_type );
     fwrite( &tape_record_type, 1, 1, ptp );
-    fwrite( &blockIndex0, 1, 1, ptp ); // Blokk sorszáma
+    unsigned char BCDindex = BCD( blockIndex0 );
+    fwrite( &BCDindex, 1, 1, ptp ); // Blokk sorszáma BCD formátumban
     fwrite( &startAddress, 2, 1, ptp ); // Betöltési cím
     crc += startAddress/256 + startAddress%256;
     fwrite( &crc, 1, 1, ptp );
     return ptp_block_size;
 }
 
-void write_ptp( FILE *pp, FILE *ptp, u_int16_t loadAddress, u_int16_t startAddress, u_int16_t dataSize ) {
+void write_ptp( FILE *pp, FILE *ptp, uint16_t loadAddress, uint16_t startAddress, uint16_t dataSize ) {
     unsigned char ptp_first_byte = 0xFF;
     fwrite( &ptp_first_byte, 1, 1, ptp );
-    u_int16_t fileSize = 0;
+    uint16_t fileSize = 0;
     int posFullSize = ftell( ptp );
     fwrite( &fileSize, 2, 1, ptp ); // Utólag kerül feltöltése
 
     write_ptp_name_block_record( ptp, ptp_name ); // 0x83
-    u_int16_t blockIndex0 = 1;
+    uint16_t blockIndex0 = 1;
     while( dataSize ) {
-        u_int16_t chunkSize16 = ( dataSize > 255 ) ? 256 : dataSize;
+        uint16_t chunkSize16 = ( dataSize > 255 ) ? 256 : dataSize;
         unsigned char chunkSize8 = chunkSize16; // 0 if 256
         write_ptp_data_record( pp, ptp, loadAddress, blockIndex0, chunkSize8 ); // 0xF9
         dataSize -= chunkSize16;
@@ -116,16 +129,16 @@ void write_ptp( FILE *pp, FILE *ptp, u_int16_t loadAddress, u_int16_t startAddre
     }
     write_ptp_last_block_record( pp, ptp, startAddress, blockIndex0 ); // 0xB9
 
-    u_int16_t fullFileSize = ftell( ptp );
+    uint16_t fullFileSize = ftell( ptp );
     fseek( ptp, posFullSize, SEEK_SET );
     fwrite( &fullFileSize, 2, 1, ptp ); // Write the correst size
 }
 
 void conv_pp_file( FILE *pp, FILE *ptp ) {
     unsigned char byte = 0;
-    u_int16_t loadAddress;
-    u_int16_t startAddress;
-    u_int16_t dataSize;
+    uint16_t loadAddress;
+    uint16_t startAddress;
+    uint16_t dataSize;
     fseek( pp, 0, SEEK_SET );
     fblockread( &loadAddress, 2, pp );
     fblockread( &startAddress, 2, pp );
