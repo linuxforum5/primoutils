@@ -20,6 +20,7 @@
 
 int verbose = 0;
 int binary_dump = 0;
+int rename_to_origin = 0; // Ha igaz, az utolsó origin címet beteszi a fájl nevébe ... remélve, hogy csak egy ilyen cím van
 char programname[17] = "";
 int dumpRowSize = 16;
 uint16_t origin = 0; // A kezdőcím
@@ -160,6 +161,7 @@ void print_usage() {
     printf( "ptpdump -i <ptp_filename> [ -o <dump_filename> ]\n");
     printf( "-c n : Col counter. Default = 16.\n");
     printf( "-b   : Binary dump. Default hex dump.\n");
+    printf( "-r   : Origin insert into filename.\n");
     printf( "-v   : Verbose mode.\n");
     exit(1);
 }
@@ -168,8 +170,9 @@ int main(int argc, char *argv[]) {
     int opt = 0;
     FILE *ptpFile = 0;
     FILE *dumpFile = stdout;
+    char* dumpFileName;
     int renumber = 0;
-    while ( ( opt = getopt ( argc, argv, "v?bh:i:o:c:" ) ) != -1 ) {
+    while ( ( opt = getopt ( argc, argv, "v?brh:i:o:c:" ) ) != -1 ) {
         switch ( opt ) {
             case -1:
             case ':':
@@ -180,6 +183,7 @@ int main(int argc, char *argv[]) {
                 break;
             case 'v': verbose = 1; break;
             case 'b': binary_dump = 1; break;
+            case 'r': rename_to_origin = 1; break;
             case 'c': dumpRowSize = atoi( optarg ); break;
             case 'i': // open ptp file
                 ptpFile = fopen( optarg, "rb" );
@@ -194,6 +198,7 @@ int main(int argc, char *argv[]) {
                     fprintf( stderr, "Error creating %s.\n", optarg);
                     exit(4);
                 }
+                dumpFileName = strdup( optarg );
                 break;
         }
     }
@@ -201,6 +206,13 @@ int main(int argc, char *argv[]) {
         ptp_dump( ptpFile, dumpFile );
         fclose( ptpFile );
         if ( dumpFile != stdout ) fclose( dumpFile );
+        if ( binary_dump && origin && rename_to_origin ) {
+            char ostr[ 7 ];
+            sprintf( ostr, "0x%04X", origin );
+            const char* newDumpFileName = insert_str_before_last_point( dumpFileName, ostr );
+            if ( verbose ) fprintf( stdout, "'%s' renamed to '%s'\n", dumpFileName, newDumpFileName );
+            rename( dumpFileName, newDumpFileName );
+        }
     } else {
         print_usage();
     }

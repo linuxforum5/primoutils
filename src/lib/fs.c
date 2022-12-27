@@ -52,3 +52,30 @@ char is_ext( const char *filename, const char *ext ) {
     }
     return !extSize;
 }
+
+const char* insert_str_before_last_point( const char *filename, const char *str ) {
+    int fnSize = strlen( filename );
+    int strSize = strlen( str );
+    if ( fnSize && strSize ) {
+        int newSize = fnSize + strSize + 2; // characters + prefix selector + end of string
+        char *newStr = malloc( newSize );
+        int newPos = newSize - 1;
+        newStr[ newPos-- ] = 0; // End of new string
+        int fnPos = fnSize - 1;
+        int strPos = strSize - 1;
+        while( fnPos>=0 && filename[ fnPos ] != '.' ) {
+            newStr[ fnPos-- + strPos + 2 ] = filename[ fnPos ];
+        }
+        newStr[ fnPos-- + strPos + 2 ] = filename[ fnPos ]; // . másolása
+        while( strPos>=0 ) {
+            newStr[ fnPos + strPos-- + 2 ] = str[ strPos ];
+        }
+        newStr[ fnPos + 1 ] = '.'; // prefix selector
+        while( fnPos>=0 ) {
+            newStr[ fnPos-- ] = filename[ fnPos ];
+        }
+        return newStr;
+    } else {
+        return filename;
+    }
+}

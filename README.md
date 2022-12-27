@@ -1,6 +1,6 @@
 # primoutils
 Primo segédprogramok 2022 linux és windows rendszerekre:
-pp2ptp, ptp2txt, ptpinfo.
+pp2ptp, ptp2txt, ptpinfo, ptpdump.
 A Windows programok a win32 mappában, a linux parancsok a bin mappában találhatók.
 
 ## pp2ptp
