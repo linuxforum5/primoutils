@@ -26,10 +26,13 @@ int showType = 1;
 int showName = 1;
 int showFilename = 1;
 int showMachineType = 1;
+int showAutostart = 1;
 int basicList = 0;
 
 int tapeType = 0; // 0x83:BASIC, 0x87:BASIC DATA
 char programname[17] = "";
+int is_autostart = 0; // is 0xB9 block
+uint16_t autostart_address = 0; // If tapeType == 0xF9 && blockType = 0xB9
 
 void fblockread( void *bytes, size_t size, FILE *src ) {
     int pos = ftell( src );
@@ -62,8 +65,7 @@ int get_ptp_block_size( FILE *ptp ) {
     }
 }
 
-void store_programname( FILE *ptp ) {
-    unsigned char block_counter = fgetc( ptp );
+void store_programname( FILE *ptp, unsigned char block_counter ) {
     if ( block_counter != 0 ) {
         fprintf( stderr, "HIBA! Névblokk csak a 0. blokk lehet!\n" );
         exit(1);
@@ -83,18 +85,22 @@ unsigned char get_next_block( FILE *ptp, int *readedBlocksSize, int *memorySize 
     if ( blockType == 0x55 || blockType == 0xAA ) {
         uint16_t size;
         fblockread( &size, 2, ptp );
+        if ( verbose ) fprintf( stdout, " Ptp block found. Type: 0x%02X, block size: %d\n", blockType, size );
         // if ( !size ) size = 256; // Ez itt sosem fordulhat elő! Töröld!
         *readedBlocksSize += size + 3;
         int pos = ftell( ptp );
 
         unsigned char tapeBlockType = fgetc( ptp );
-        if ( verbose ) fprintf( stdout, "Block type: 0x%02X, memory size: %d\n", tapeBlockType, size );
+        unsigned char blockIndex = fgetc( ptp );
+        if ( verbose ) fprintf( stdout, "  Tape block type: 0x%02X, index=%02x, memory size: %d\n", tapeBlockType, blockIndex, size );
         if ( tapeBlockType == 0x83 || tapeBlockType == 0x87 ) {
-            store_programname( ptp );
+            store_programname( ptp, blockIndex );
         } else if ( tapeBlockType == 0xF1 || tapeBlockType == 0xF7 || tapeBlockType == 0xF9 ) {
             if ( !tapeType) tapeType = tapeBlockType; // Az első adtablokk típusa
             *memorySize += size - 7;
-        } else if ( tapeBlockType == 0xB9 ) {
+        } else if ( tapeBlockType == 0xB9 ) { // Auto start address block
+            is_autostart = 1;
+            fblockread( &autostart_address, 2, ptp );
             *memorySize += 2;
         }
 
@@ -120,7 +126,7 @@ void ptp_info( char *ptpFilenameWithPath ) {
                 ptpBlockSumSize = get_ptp_block_size( ptp );
                 readedBlocksSize = 0;
             }
-            if ( ptpBlockSumSize ) get_next_block( ptp, &readedBlocksSize, &memorySize );
+            if ( ptpBlockSumSize ) blockType = get_next_block( ptp, &readedBlocksSize, &memorySize );
         }
         fclose( ptp );
         if ( !verbose ) {
@@ -152,6 +158,13 @@ void ptp_info( char *ptpFilenameWithPath ) {
                 }
                 fprintf( stdout, "\n" );
             }
+            if ( showAutostart ) {
+                if ( is_autostart ) {
+                    fprintf( stdout, "Autostart address is 0x%04X\n", autostart_address );
+                } else {
+                    fprintf( stdout, "No autostart address defined.\n" );
+                }
+            }
             if ( showBlocks )   fprintf( stdout, "Block counter:\t%d\n", blockCounter );
             if ( showRam )      fprintf( stdout, "Memory size:\t%d\n", memorySize );
             if ( showMachineType ) {
@@ -178,13 +191,14 @@ void print_usage() {
     printf( "Copyright 2022 by László Princz\n");
     printf( "Usage:\n");
     printf( "ptpinfo -i <ptp_filename>\n");
-    printf( "-R            : RAM size only.\n");
-    printf( "-b            : Blocks counter only.\n");
-    printf( "-t            : Type only (BASIC/SYSTEM).\n");
-    printf( "-T            : Machine type only (A32/A48/A64).\n");
-    printf( "-f            : Filename with path only.\n");
+    printf( "-R            : Show RAM size only.\n");
+    printf( "-b            : Show blocks counter only.\n");
+    printf( "-t            : Show type only (BASIC/SYSTEM).\n");
+    printf( "-T            : Show machine type only (A32/A48/A64).\n");
+    printf( "-f            : Show filename with path only.\n");
 //    printf( "-l            : List BASIC program.\n");
-    printf( "-n            : Program name only.\n");
+    printf( "-n            : Show program name only.\n");
+    printf( "-a            : Show autostart address only.\n");
     printf( "-v            : Verbose output.\n");
     exit(1);
 }
@@ -219,6 +233,7 @@ int main(int argc, char *argv[]) {
     showName = 0; // n
     showFilename = 0; // f
     showMachineType = 0; // T
+    showAutostart = 0;
     while ( ( opt = getopt (argc, argv, "lbRtnfTv?h:i:") ) != -1 ) {
         switch ( opt ) {
             case -1:
@@ -238,6 +253,7 @@ int main(int argc, char *argv[]) {
             case 'n': showName = 1;        all=0; break; // n
             case 'f': showFilename = 1;    all=0; break; // f
             case 'T': showMachineType = 1; all=0; break; // T
+            case 'a': showAutostart = 1;   all=0; break; // a
             case 'i': // open ptp file
                 if ( is_dir( optarg ) ) { // Input is a direcory
                     ptpDir = copyStr( optarg, 0 );
@@ -254,6 +270,7 @@ int main(int argc, char *argv[]) {
         showName = 1; // n
         showFilename = 1; // f
         showMachineType = 1; // T
+        showAutostart = 1; // a
     }
 
     if ( ptpDir ) {
