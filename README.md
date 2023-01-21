@@ -1,7 +1,22 @@
 # primoutils
 Primo segédprogramok 2022 linux és windows rendszerekre:
-pp2ptp, ptp2txt, ptpinfo, ptpdump.
+pp2ptp, ptp2txt, ptpinfo, ptpdump, ptp2wav.
 A Windows programok a win32 mappában, a linux parancsok a bin mappában találhatók.
+
+## ptp2wav
+Egy .ptp típusú fájlt konvertál .wav formátumra. A konverzió alapjául Varga Viktor <a href='https://github.com/vargaviktor/primotools/'>primotools</a> projektben található PTP2WAV szolgált, 
+de két további új opció segítségével a betöltési sebesség felgyorsítható.
+Például a "ptp2wav -f 13000 -0 7 -i manic_miner.ptp -o manic_miner.wav" parancs segítségével konvertált wav fájl az eredeti 9 perc helyett 5 perc alatt betölthető, a Primo mindenféle módosítása nélkül.
+
+A ptp2wav parancs használata
+ptp2wav [opciók] -i <prp_fájlnév> -o <wav_fájlnév>
+Opciók:
+-f            : Fake baud a betöltéshez. A wav 8000Hz-es mintavételezéssel készül, de például 13000Hz-es mintavételezési értéket megadva sokkal gyorsabban betölthető.
+-0            : A 0 bithez tartozó minták száma. Eredetileg 8, de ez 7-re is lecsökkenthető.
+-1            : Az 1 bithez tartozó minták száma. Eredetileg 3. Nem ajánlott módosítani.
+-i <ptp_fájl> : A konvertálandó ptp fájl neve.
+-o <wav_fájl> : A generált wav fájl neve.
+-v            : Beszédes kimenet.
 
 ## pp2ptp
 Egy .pp típusú fájlt konvertál .ptp formátumra. (Jelenleg pp fájlt generál például a z88dk fordító -subtype=mamepp opció hatására.)
