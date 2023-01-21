@@ -1,5 +1,4 @@
 # Simple makefile for utils
-
 CC=gcc
 WCC=i686-w64-mingw32-gcc
 SRC=src
@@ -7,11 +6,15 @@ WBIN=win32
 BIN=bin
 INSTALL_DIR=~/.local/bin
 
-all: pp2ptp ptpinfo ptp2txt ptpdump
+all: pp2ptp ptpinfo ptp2txt ptpdump ptp2wav
 
 pp2ptp: $(SRC)/pp2ptp.c
 	$(CC) -o $(BIN)/pp2ptp $(SRC)/pp2ptp.c
 	$(WCC) -o $(WBIN)/pp2ptp $(SRC)/pp2ptp.c
+
+ptp2wav: $(SRC)/ptp2wav.c
+	$(CC) -o $(BIN)/ptp2wav $(SRC)/ptp2wav.c
+	$(WCC) -o $(WBIN)/ptp2wav $(SRC)/ptp2wav.c
 
 ptpinfo: $(SRC)/ptpinfo.c
 	$(CC) -Isrc/lib -o $(BIN)/ptpinfo $(SRC)/ptpinfo.c $(SRC)/lib/fs.c
