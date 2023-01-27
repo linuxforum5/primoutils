@@ -6,7 +6,7 @@ WBIN=win32
 BIN=bin
 INSTALL_DIR=~/.local/bin
 
-all: pp2ptp ptpinfo ptp2txt ptpdump ptp2wav
+all: pp2ptp ptpinfo ptp2txt ptpdump ptp2wav ptp2c
 
 pp2ptp: $(SRC)/pp2ptp.c
 	$(CC) -o $(BIN)/pp2ptp $(SRC)/pp2ptp.c
@@ -23,6 +23,10 @@ ptpinfo: $(SRC)/ptpinfo.c
 ptp2txt: $(SRC)/ptp2txt.c
 	$(CC) -Isrc/lib -o $(BIN)/ptp2txt $(SRC)/ptp2txt.c $(SRC)/lib/fs.c
 	$(WCC) -Isrc/lib -o $(WBIN)/ptp2txt $(SRC)/ptp2txt.c $(SRC)/lib/fs.c
+
+ptp2c: $(SRC)/ptp2c.c
+	$(CC) -Isrc/lib -o $(BIN)/ptp2c $(SRC)/ptp2c.c $(SRC)/lib/fs.c
+	$(WCC) -Isrc/lib -o $(WBIN)/ptp2c $(SRC)/ptp2c.c $(SRC)/lib/fs.c
 
 ptpdump: $(SRC)/ptpdump.c
 	$(CC) -Isrc/lib -o $(BIN)/ptpdump $(SRC)/ptpdump.c $(SRC)/lib/fs.c

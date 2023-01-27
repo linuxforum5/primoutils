@@ -94,7 +94,7 @@ void write_ptp_data_record( FILE *pp, FILE *ptp, uint16_t loadAddress, unsigned 
 // Write ptp and tape close blocks in one
 uint16_t write_ptp_last_block_record( FILE *pp, FILE *ptp, uint16_t startAddress, unsigned char blockIndex0 ) {
     unsigned char ptp_block_type = 0xAA; // Last ptp block
-    uint16_t ptp_block_size = 8; // Last block size
+    uint16_t ptp_block_size = 5; // Last block size
     fwrite( &ptp_block_type, 1, 1, ptp );
     fwrite( &ptp_block_size, 2, 1, ptp );
     unsigned char tape_record_type = 0xB9; // System last tape record, autostart

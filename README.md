@@ -20,7 +20,7 @@ Opciók:
 
 ## pp2ptp
 Egy .pp típusú fájlt konvertál .ptp formátumra. (Jelenleg pp fájlt generál például a z88dk fordító -subtype=mamepp opció hatására.)
-A .ptp fájl betölthető emulátorba, vagy tovább konvertálható .wav fájllá a <a href='https://github.com/vargaviktor/primotools/'>primotools</a> projektben található PTP2WAV.EXE segítségével.
+A .ptp fájl betölthető emulátorba, vagy tovább konvertálható .wav fájllá a ptp2wav segítségével.
 
 A pp2ptp parancs használata
 pp2ptp [opciók] -i <pp_fájlnév> [ -o <ptp_fájlnév> ]
@@ -39,7 +39,7 @@ Ezzel elkészül a helloworld.pp állomány.
 A pp2ptp segítségével ez már konvertálható ptp formátumra:
     ./pp2ptp -i helloworld.pp
 Ez létrehozza a helloworld.ptp fájlt.
-A <a href='https://github.com/vargaviktor/primotools/'>PTP2WAV.EXE</a> segítségével előállítható a WAV fájl
+A ptp2wav segítségével előállítható a WAV fájl
 A Primo BASIC LOAD parancsa ezt már képes betölteni és lefuttatni.
 
 ##ptp2txt
@@ -54,13 +54,14 @@ Opciók:
 Egy ptp fájlról szolgáltat információkat. Ha nincsenek megadva egyedi opciók, akkor minden információt megjelenít. Teszteléshez hasznos lehet.
 ptpinfo [opciók] -i <ptp_fájlnév>
 Pociók:
--R            : RAM size only.
--b            : Blocks counter only.
--t            : Type only (BASIC/SYSTEM).
--T            : Machine type only (A32/A48/A64).
--f            : Filename with path only.
--n            : Program name only.
+-R            : Show RAM size only.
+-b            : Show blocks counter only.
+-t            : Show type only (BASIC/SYSTEM).
+-T            : Show minimum machine type only (A32/A48/A64).
+-f            : Show filename with path only.
+-n            : Show program name only.
+-a            : Show autostart address only.
 -v            : Verbose output.
 
 ##ptpdump
-Egy gépikódú programot tartalmazó .ptp fájlt konvertál bináris fájllá, ami a betöltés utáni memóratartalmat jelenti.
+Egy gépikódú programot tartalmazó .ptp fájlt konvertál bináris fájllá, ami a betöltés utáni memóratartalmat tartalmazza.

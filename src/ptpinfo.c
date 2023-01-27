@@ -80,36 +80,44 @@ void store_programname( FILE *ptp, unsigned char block_counter ) {
     unsigned char crc = fgetc( ptp );
 }
 
-unsigned char get_next_block( FILE *ptp, int *readedBlocksSize, int *memorySize ) {
-    unsigned char blockType = fgetc( ptp );
-    if ( blockType == 0x55 || blockType == 0xAA ) {
-        uint16_t size;
-        fblockread( &size, 2, ptp );
-        if ( verbose ) fprintf( stdout, " Ptp block found. Type: 0x%02X, block size: %d\n", blockType, size );
+unsigned char get_next_ptp_block( FILE *ptp, int *readedBlocksSize, int *memorySize ) {
+    unsigned char ptpBlockType = fgetc( ptp );
+    if ( ptpBlockType == 0x55 || ptpBlockType == 0xAA ) {
+        uint16_t ptp_block_size;
+        fblockread( &ptp_block_size, 2, ptp );
+        if ( verbose ) fprintf( stdout, " Ptp block found. Type: 0x%02X, block size: %d\n", ptpBlockType, ptp_block_size );
         // if ( !size ) size = 256; // Ez itt sosem fordulhat elő! Töröld!
-        *readedBlocksSize += size + 3;
+        *readedBlocksSize += ptp_block_size + 3;
         int pos = ftell( ptp );
 
         unsigned char tapeBlockType = fgetc( ptp );
         unsigned char blockIndex = fgetc( ptp );
-        if ( verbose ) fprintf( stdout, "  Tape block type: 0x%02X, index=%02x, memory size: %d\n", tapeBlockType, blockIndex, size );
+        if ( verbose ) fprintf( stdout, "  Tape block type: 0x%02X, index=%02x, memory size: %d\n", tapeBlockType, blockIndex, ptp_block_size ); // Itt helyes a ptp_block_size? Nem!!!
         if ( tapeBlockType == 0x83 || tapeBlockType == 0x87 ) {
             store_programname( ptp, blockIndex );
         } else if ( tapeBlockType == 0xF1 || tapeBlockType == 0xF7 || tapeBlockType == 0xF9 ) {
             if ( !tapeType) tapeType = tapeBlockType; // Az első adtablokk típusa
-            *memorySize += size - 7;
+            unsigned char loadAddressL = fgetc( ptp );
+            unsigned char loadAddressH = fgetc( ptp );
+            unsigned char tapeBlockSize = fgetc( ptp );
+            unsigned int tapeBockMemorySize = tapeBlockSize ? tapeBlockSize : 256;
+            *memorySize += tapeBlockSize;
+            if ( tapeBlockSize + 7 != ptp_block_size ) {
+                fprintf( stderr, "Invalid ptp and tape block size!\n" );
+                exit(1);
+            }
         } else if ( tapeBlockType == 0xB9 ) { // Auto start address block
             is_autostart = 1;
             fblockread( &autostart_address, 2, ptp );
-            *memorySize += 2;
+//            *memorySize += 2;
         }
 
-        fseek( ptp, pos+size, SEEK_SET );
+        fseek( ptp, pos + ptp_block_size, SEEK_SET );
     } else {
-        fprintf( stderr, "Invalid .ptp block type: 0x%02X.\n", blockType );
+        fprintf( stderr, "Invalid .ptp block type: 0x%02X.\n", ptpBlockType );
         exit(2);
     }
-    return blockType;
+    return ptpBlockType;
 }
 
 void ptp_info( char *ptpFilenameWithPath ) {
@@ -119,14 +127,14 @@ void ptp_info( char *ptpFilenameWithPath ) {
         int readedBlocksSize = 0;
         int memorySize = 0;
         int blockCounter = 1;
-        unsigned char blockType = get_next_block( ptp, &readedBlocksSize, &memorySize );
-        while( ( blockType != 0xAA ) && ptpBlockSumSize ) {
+        unsigned char ptpBlockType = get_next_ptp_block( ptp, &readedBlocksSize, &memorySize );
+        while( ( ptpBlockType != 0xAA ) && ptpBlockSumSize ) {
             blockCounter++;
             if ( ptpBlockSumSize == readedBlocksSize ) {
                 ptpBlockSumSize = get_ptp_block_size( ptp );
                 readedBlocksSize = 0;
             }
-            if ( ptpBlockSumSize ) blockType = get_next_block( ptp, &readedBlocksSize, &memorySize );
+            if ( ptpBlockSumSize ) ptpBlockType = get_next_ptp_block( ptp, &readedBlocksSize, &memorySize );
         }
         fclose( ptp );
         if ( !verbose ) {
@@ -219,8 +227,6 @@ void ptp_dir_info( char *ptpDir ) {
     }
     closedir (pDir);
 }
-
-
 
 int main(int argc, char *argv[]) {
     int opt = 0;
