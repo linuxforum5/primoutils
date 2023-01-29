@@ -102,8 +102,8 @@ unsigned char get_next_ptp_block( FILE *ptp, int *readedBlocksSize, int *memoryS
             unsigned char tapeBlockSize = fgetc( ptp );
             unsigned int tapeBockMemorySize = tapeBlockSize ? tapeBlockSize : 256;
             *memorySize += tapeBlockSize;
-            if ( tapeBlockSize + 7 != ptp_block_size ) {
-                fprintf( stderr, "Invalid ptp and tape block size!\n" );
+            if ( tapeBockMemorySize + 6 != ptp_block_size ) {
+                fprintf( stderr, "Invalid ptp (%d) and tape (%d) block size!\n", ptp_block_size, tapeBlockSize );
                 exit(1);
             }
         } else if ( tapeBlockType == 0xB9 ) { // Auto start address block
