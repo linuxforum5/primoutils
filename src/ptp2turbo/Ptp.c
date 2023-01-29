@@ -1,6 +1,8 @@
 /**
- * Primo .ptp c bináris tartalmának c forráskódbakonvertálása
+ * Primo .ptp formátum kezelése
  */
+#include "Ptp.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -12,59 +14,14 @@
 #include <string.h>
 #include "getopt.h"
 #include <libgen.h>
-#include "lib/fs.h"
 
-#ifdef _WIN32
-#include <stdint.h>
-typedef uint8_t u_int8_t;
-typedef uint16_t u_int16_t;
-typedef uint32_t u_int32_t;
-#endif
+static int verbose = 0;
 
-#define VM 0
-#define VS 2
-#define VB 'b'
-
-unsigned char bytes[65535];
-u_int16_t byte_counter = 0;
-u_int16_t load_address = 0; // first byte load address
-u_int16_t run_address = 0; // run address after load
-char tape_name[17] = ""; // Tape name in tape_name_block
-char var_name[100] = "ptp_content"; // A C változó neve
-
-int verbose = 0;
-int hexData = 1; // if 0 then bytes stored in decimal format
-int constg = 1; // if 0 no const generated
-
-void create_c_code( FILE *cCode ) {
-    fprintf( cCode, "/* ptp2c generated c source code from '%s' ptp file.*/\n\n", tape_name );
-    fprintf( cCode, "static %sstruct {\n", constg?"const ":"" );
-    fprintf( cCode, "    char name[ 17 ];\n" );
-    fprintf( cCode, "    uint16_t run_address;\n" );
-    fprintf( cCode, "    uint16_t load_address;\n" );
-    fprintf( cCode, "    uint16_t byte_counter;\n" );
-    fprintf( cCode, "    unsigned char bytes[ %d ];\n", byte_counter );
-    if ( hexData ) {
-        fprintf( cCode, "} %s = { \"%s\", 0x%04X, 0x%04X, 0x%04X // First free address: 0x%04X\n", var_name, tape_name, run_address, load_address, byte_counter, load_address + byte_counter );
-    } else {
-        fprintf( cCode, "} %s = { %d, %d, %d\n", var_name, run_address, load_address, byte_counter );
-    }
-    int line = 16;
-    int indent = strlen( var_name ) + 5;
-    for( int i=0; i<byte_counter; i+=line ) {
-        for( int j=0; j<indent; j++ ) fprintf( cCode, " " );
-        for( int j=0; j<line && i+j < byte_counter; j++ ) {
-            if ( hexData ) {
-                fprintf( cCode, ", 0x%02X", bytes[ i + j ] );
-            } else {
-                fprintf( cCode, ", %d", bytes[ i + j ] );
-            }
-        }
-        fprintf( cCode, "\n" );
-    }
-    for( int j=0; j<indent; j++ ) fprintf( cCode, " " );
-    fprintf( cCode, "};\n" );
-}
+static unsigned char bytes[65535];
+static u_int16_t byte_counter = 0;
+static u_int16_t load_address = 0; // first byte load address
+static u_int16_t run_address = 0; // run address after load
+static char tape_name[17] = ""; // Tape name in tape_name_block
 
 u_int16_t read_tape_close_block( FILE *ptp, unsigned char blockIndex, int is_autostart ) { // blockType and blockIndex already readed from ptp
     if ( verbose ) printf( "\t%02X. tape block type: Close\n", blockIndex );
@@ -143,6 +100,7 @@ u_int16_t read_tape_block( FILE *ptp ) {
     }
 }
 
+
 unsigned char read_ptp_block( FILE *ptp ) {
     unsigned char ptpBlockType = fgetc( ptp );
     if ( ptpBlockType == 0x55 || ptpBlockType == 0xAA ) {
@@ -167,7 +125,21 @@ unsigned char read_ptp_block( FILE *ptp ) {
     return ptpBlockType;
 }
 
-void ptp_conv( FILE *ptp, FILE *cCode ) {
+PTP_DATA create_ptp_data() {
+    PTP_DATA payload;
+    strcpy( payload.name, tape_name );
+    payload.run_address = run_address;
+    payload.load_address = load_address;
+    payload.byte_counter = byte_counter;
+    payload.bytes = malloc( byte_counter );
+    for( int i=0; i<byte_counter; i++ ) {
+        payload.bytes[i] = bytes[i];
+    }
+    return payload;
+}
+
+PTP_DATA load_payload_from_ptp( FILE *ptp, int verb ) {
+    verbose = verb;
     if ( 0xFF == fgetc( ptp ) ) { // PTP first byte
         u_int16_t ptpLength = 0;
         fread( &ptpLength, 2, 1, ptp );
@@ -175,66 +147,9 @@ void ptp_conv( FILE *ptp, FILE *cCode ) {
         while( ptpBlockType != 0xAA ) {
             ptpBlockType = read_ptp_block( ptp );
         }
-        create_c_code( cCode );
+        return create_ptp_data();
     } else {
         fprintf( stderr, "Invalid ptp fileformat.\n" );
         exit(1);
-    }
-}
-
-void print_usage() {
-    printf( "ptp2c v%d.%d%c (build: %s)\n", VM, VS, VB, __DATE__ );
-    printf( "Convert .ptp file contents to .c source file.\n");
-    printf( "Copyright 2023 by László Princz\n");
-    printf( "Usage:\n");
-    printf( "ptp2c -i <ptp_filename> [ -o <c_filename> ]\n");
-    printf( "-n name : Set the name of created c variable. Default value is: %s.\n", var_name );
-    printf( "-N      : No const! The generated variable is no const. Default is const.\n" );
-    printf( "-v      : Verbose mode.\n");
-    exit( 1 );
-}
-
-int main(int argc, char *argv[]) {
-    int opt = 0;
-    FILE *ptpFile = 0;
-    FILE *cFile = stdout;
-    int renumber = 0;
-    while ( ( opt = getopt (argc, argv, "v?hNn:i:o:") ) != -1 ) {
-        switch ( opt ) {
-            case -1:
-            case ':':
-                break;
-            case '?':
-            case 'h':
-                print_usage();
-                break;
-            case 'v': verbose = 1; break;
-            case 'n': // c variable name
-                strcpy( var_name, optarg );
-                break;
-            case 'N': constg = 0; break;
-            case 'i': // open ptp file
-                ptpFile = fopen( optarg, "rb" );
-                if ( !ptpFile ) {
-                    fprintf( stderr, "Error opening %s.\n", optarg);
-                    exit(4);
-                }
-                break;
-            case 'o': // open txt file
-                cFile = fopen( optarg, "wb" );
-                if ( !cFile ) {
-                    fprintf( stderr, "Error creating %s.\n", optarg);
-                    exit(4);
-                }
-                break;
-        }
-    }
-    if ( ptpFile && cFile ) {
-        ptp_conv( ptpFile, cFile );
-        fclose( ptpFile );
-        if ( cFile != stdout ) fclose( cFile );
-    } else {
-        print_usage();
-    }
-    return 0;
+    }    
 }
