@@ -27,11 +27,13 @@ int showName = 1;
 int showFilename = 1;
 int showMachineType = 1;
 int showAutostart = 1;
+int showFirstLoadAddr = 1;
 int basicList = 0;
 
 int tapeType = 0; // 0x83:BASIC, 0x87:BASIC DATA
 char programname[17] = "";
 int is_autostart = 0; // is 0xB9 block
+uint16_t first_load_address = 0; // Az első betöltött 0xF9 blokk kezdőcíme
 uint16_t autostart_address = 0; // If tapeType == 0xF9 && blockType = 0xB9
 
 void fblockread( void *bytes, size_t size, FILE *src ) {
@@ -47,25 +49,24 @@ void fblockread( void *bytes, size_t size, FILE *src ) {
     }
 }
 
-int get_ptp_block_size( FILE *ptp ) {
+int get_ptp_file_size( FILE *ptp, int file_index ) {
     unsigned char byte = fgetc( ptp );
     if ( feof( ptp ) ) {
-        if ( verbose ) fprintf( stdout, "End of file\n" );
-        return 0;
+        return -1;
     } else {
         if ( byte == 0xFF ) { // Ok
             uint16_t size;
             fblockread( &size, 2, ptp );
-            if ( verbose ) fprintf( stdout, "Ptp block size: %d\n", size );
+            if ( verbose ) fprintf( stdout, "%d. ptp file size: %d\n", file_index, size );
             return size - 3;
         } else {
-            fprintf( stderr, "Invalid .ptp block format. Bad first block character: 0x%02X.\n", byte );
+            fprintf( stderr, "Invalid .ptp file format. Bad first block character: 0x%02X.\n", byte );
             exit(1);
         }
     }
 }
 
-void store_programname( FILE *ptp, unsigned char block_counter ) {
+void get_programname( FILE *ptp, unsigned char block_counter ) {
     if ( block_counter != 0 ) {
         fprintf( stderr, "HIBA! Névblokk csak a 0. blokk lehet!\n" );
         exit(1);
@@ -77,15 +78,16 @@ void store_programname( FILE *ptp, unsigned char block_counter ) {
     }
     fblockread( &programname, namelength, ptp );
     programname[ namelength ] = 0;
+    if ( verbose ) fprintf( stdout, "    Tape stored name: '%s'\n", programname ); // Itt helyes a ptp_block_size? Nem!!!
     unsigned char crc = fgetc( ptp );
 }
 
-unsigned char get_next_ptp_block( FILE *ptp, int *readedBlocksSize, int *memorySize ) {
+unsigned char get_next_ptp_block( FILE *ptp, int ptp_file_counter, int ptp_block_counter, int *readedBlocksSize, int *memorySize ) { // Egy ptp blok felolvasása
     unsigned char ptpBlockType = fgetc( ptp );
     if ( ptpBlockType == 0x55 || ptpBlockType == 0xAA ) {
         uint16_t ptp_block_size;
         fblockread( &ptp_block_size, 2, ptp );
-        if ( verbose ) fprintf( stdout, " Ptp block found. Type: 0x%02X, block size: %d\n", ptpBlockType, ptp_block_size );
+        if ( verbose ) fprintf( stdout, " %d. ptp file %d. ptp block found. Type: 0x%02X, block size: %d\n", ptp_file_counter, ptp_block_counter, ptpBlockType, ptp_block_size );
         // if ( !size ) size = 256; // Ez itt sosem fordulhat elő! Töröld!
         *readedBlocksSize += ptp_block_size + 3;
         int pos = ftell( ptp );
@@ -94,24 +96,31 @@ unsigned char get_next_ptp_block( FILE *ptp, int *readedBlocksSize, int *memoryS
         unsigned char blockIndex = fgetc( ptp );
         if ( verbose ) fprintf( stdout, "  Tape block type: 0x%02X, index=%02x, memory size: %d\n", tapeBlockType, blockIndex, ptp_block_size ); // Itt helyes a ptp_block_size? Nem!!!
         if ( tapeBlockType == 0x83 || tapeBlockType == 0x87 ) {
-            store_programname( ptp, blockIndex );
-        } else if ( tapeBlockType == 0xF1 || tapeBlockType == 0xF7 || tapeBlockType == 0xF9 ) {
-            if ( !tapeType) tapeType = tapeBlockType; // Az első adtablokk típusa
-            unsigned char loadAddressL = fgetc( ptp );
-            unsigned char loadAddressH = fgetc( ptp );
+            get_programname( ptp, blockIndex );
+        } else if ( tapeBlockType == 0xF1 || tapeBlockType == 0xF7 || tapeBlockType == 0xF5 || tapeBlockType == 0xF9 ) {
+            unsigned char loadAddressL = fgetc( ptp ); // Absolute if 0xF9 else relative
+            unsigned char loadAddressH = fgetc( ptp ); // Absolute if 0xF9 else relative
             unsigned char tapeBlockSize = fgetc( ptp );
+            if ( verbose ) fprintf( stdout, "    Load address: 0x%04X\n", loadAddressL + 256 * loadAddressH ); // Itt helyes a ptp_block_size? Nem!!!
+            if ( !tapeType) {
+                first_load_address = loadAddressL + 256 * loadAddressH;
+                tapeType = tapeBlockType; // Az első adtablokk típusa
+            }
             unsigned int tapeBockMemorySize = tapeBlockSize ? tapeBlockSize : 256;
-            *memorySize += tapeBlockSize;
+            if ( tapeBlockType != 0xF5 ) *memorySize += tapeBlockSize;
             if ( tapeBockMemorySize + 6 != ptp_block_size ) {
                 fprintf( stderr, "Invalid ptp (%d) and tape (%d) block size!\n", ptp_block_size, tapeBlockSize );
                 exit(1);
             }
+        } else if ( tapeBlockType == 0xB1 ) { // BASIC or SYSTEM program end block without autostart
+        } else if ( tapeBlockType == 0xB5 ) { // Képernyőtartalom vége
         } else if ( tapeBlockType == 0xB9 ) { // Auto start address block
             is_autostart = 1;
             fblockread( &autostart_address, 2, ptp );
-//            *memorySize += 2;
+        } else {
+            fprintf( stderr, "Invalid tape block type: 0x%02X.\n", tapeBlockType );
+            exit(2);
         }
-
         fseek( ptp, pos + ptp_block_size, SEEK_SET );
     } else {
         fprintf( stderr, "Invalid .ptp block type: 0x%02X.\n", ptpBlockType );
@@ -120,28 +129,37 @@ unsigned char get_next_ptp_block( FILE *ptp, int *readedBlocksSize, int *memoryS
     return ptpBlockType;
 }
 
+int read_ptp_file( FILE *ptp, int file_index, int *memorySize ) { // Egy ptp szallagállomány beolvasása. Nem feltétlen egy fizikai ptp fájl! Annak lehet egy része is!
+    int ptpBlockSumSize = get_ptp_file_size( ptp, file_index );
+    if ( ptpBlockSumSize <= 0 ) { // EOF
+        return 0;
+    } else {
+        int readedBlocksSize = 0;
+        int ptpBlockCounter = 1;
+        unsigned char ptpBlockType = get_next_ptp_block( ptp, file_index, ptpBlockCounter, &readedBlocksSize, memorySize );
+        while( ptpBlockType != 0xAA ) {
+            ptpBlockCounter++;
+            ptpBlockType = get_next_ptp_block( ptp, file_index, ptpBlockCounter, &readedBlocksSize, memorySize );
+        }
+        return ptpBlockCounter;
+    }
+}
+
 void ptp_info( char *ptpFilenameWithPath ) {
     FILE *ptp = 0;
     if ( ptp = fopen( ptpFilenameWithPath, "rb" ) ) {
-        int ptpBlockSumSize = get_ptp_block_size( ptp );
-        int readedBlocksSize = 0;
         int memorySize = 0;
-        int blockCounter = 1;
-        unsigned char ptpBlockType = get_next_ptp_block( ptp, &readedBlocksSize, &memorySize );
-        while( ( ptpBlockType != 0xAA ) && ptpBlockSumSize ) {
-            blockCounter++;
-            if ( ptpBlockSumSize == readedBlocksSize ) {
-                ptpBlockSumSize = get_ptp_block_size( ptp );
-                readedBlocksSize = 0;
-            }
-            if ( ptpBlockSumSize ) ptpBlockType = get_next_ptp_block( ptp, &readedBlocksSize, &memorySize );
+        int ptpBlockCounter = 0;
+        int currPtpBlockCounter = 0;
+        for( int file_counter = 1; currPtpBlockCounter = read_ptp_file( ptp, file_counter, &memorySize ); file_counter++ ) {
+            ptpBlockCounter += currPtpBlockCounter;
         }
         fclose( ptp );
         if ( !verbose ) {
             if ( showFilename ) fprintf( stdout, "%s\t", ptpFilenameWithPath );
             if ( showName )     fprintf( stdout, "%s\t", programname );
             if ( showType )     fprintf( stdout, "0x%02X\t", tapeType );
-            if ( showBlocks )   fprintf( stdout, "%d\t", blockCounter );
+            if ( showBlocks )   fprintf( stdout, "%d\t", ptpBlockCounter );
             if ( showRam )      fprintf( stdout, "%d\t", memorySize );
             if ( showMachineType ) {
                 if ( memorySize > 28000 ) {
@@ -173,7 +191,8 @@ void ptp_info( char *ptpFilenameWithPath ) {
                     fprintf( stdout, "No autostart address defined.\n" );
                 }
             }
-            if ( showBlocks )   fprintf( stdout, "Block counter:\t%d\n", blockCounter );
+            if ( showFirstLoadAddr ) fprintf( stdout, "First load address:\t0x%04X\n", first_load_address );
+            if ( showBlocks )   fprintf( stdout, "Block counter:\t%d\n", ptpBlockCounter );
             if ( showRam )      fprintf( stdout, "Memory size:\t%d\n", memorySize );
             if ( showMachineType ) {
                 fprintf ( stdout, "Machine type:\t" );
@@ -204,6 +223,7 @@ void print_usage() {
     printf( "-t            : Show type only (BASIC/SYSTEM).\n");
     printf( "-T            : Show machine type only (A32/A48/A64).\n");
     printf( "-f            : Show filename with path only.\n");
+    printf( "-F            : Show First load address only.\n");
 //    printf( "-l            : List BASIC program.\n");
     printf( "-n            : Show program name only.\n");
     printf( "-a            : Show autostart address only.\n");
@@ -240,7 +260,8 @@ int main(int argc, char *argv[]) {
     showFilename = 0; // f
     showMachineType = 0; // T
     showAutostart = 0;
-    while ( ( opt = getopt (argc, argv, "lbRtnfTv?h:i:") ) != -1 ) {
+    showFirstLoadAddr = 0;
+    while ( ( opt = getopt (argc, argv, "lbRtnafFTv?h:i:") ) != -1 ) {
         switch ( opt ) {
             case -1:
             case ':':
@@ -260,6 +281,7 @@ int main(int argc, char *argv[]) {
             case 'f': showFilename = 1;    all=0; break; // f
             case 'T': showMachineType = 1; all=0; break; // T
             case 'a': showAutostart = 1;   all=0; break; // a
+            case 'F': showFirstLoadAddr = 1;   all=0; break; // a
             case 'i': // open ptp file
                 if ( is_dir( optarg ) ) { // Input is a direcory
                     ptpDir = copyStr( optarg, 0 );
@@ -277,6 +299,7 @@ int main(int argc, char *argv[]) {
         showFilename = 1; // f
         showMachineType = 1; // T
         showAutostart = 1; // a
+        showFirstLoadAddr = 1; // F
     }
 
     if ( ptpDir ) {
