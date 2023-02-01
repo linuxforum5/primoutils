@@ -67,10 +67,10 @@ int primo2Utf( unsigned char character ) { // http://lzsiga.users.sourceforge.ne
     }
 }
 
-int line_counter = 0; // BASIC lines counter
-int max_line_counter = 0; // BASIC lines counter
-uint16_t *origi_line_numbers = 0;
-char origi_line_numbers_loaded = 0; // If 1
+int line_counter = 0;               // BASIC lines counter
+int max_line_counter = 0;           // BASIC lines counter
+uint16_t *origi_line_numbers = 0;   // Origi line numbers array
+char origi_line_numbers_loaded = 0; // If 1, origi_line_numbers array is loaded
 uint16_t renumber_first = 10;
 uint16_t renumber_diff = 10;
 
@@ -119,7 +119,7 @@ int get_ptp_block_size( FILE *ptp ) {
         if ( byte == 0xFF ) { // Ok
             uint16_t size;
             fblockread( &size, 2, ptp );
-            if ( verbose ) fprintf( stdout, "Ptp block size: %d\n", size );        
+            if ( verbose > 1 ) fprintf( stdout, "Ptp block size: %d\n", size );        
             return size - 3;
         } else {
             fprintf( stderr, "Invalid .ptp block format. Bad first block character: 0x%02X.\n", byte );
@@ -160,6 +160,8 @@ void print_token( FILE *txt, unsigned char token ) {
     }
 }
 
+// unsigned long ftell2( FILE* ptp ) { unsigned long pos = ftell( ptp ); return pos-line_prefix_length; }
+
 unsigned char fgetc2( FILE *ptp ) { // Ha van puffer, onnan, ha nincs, akkor file-ból olvas
     if ( line_prefix_length ) {
         unsigned char byte = line_prefix[ 0 ];
@@ -171,18 +173,19 @@ unsigned char fgetc2( FILE *ptp ) { // Ha van puffer, onnan, ha nincs, akkor fil
     }
 }
 
-void print_line_prefix4( FILE *ptp, FILE *txt ) {
+void print_line_prefix4( FILE *ptp, FILE *txt ) { // A tárolt BASIC sorok mindig egy 2 bájtos címmel és egy 2 bájtos sorszámmal kezdődnek.
     uint16_t next_line_addr = 0;
     uint16_t line_number = 0;
     next_line_addr = fgetc2( ptp ) + 256 * fgetc2( ptp );
     line_number = fgetc2( ptp ) + 256 * fgetc2( ptp );
-    if ( origi_line_numbers && !origi_line_numbers_loaded ) { // Pass 1
+    if ( origi_line_numbers && !origi_line_numbers_loaded ) { // Pass 2
         origi_line_numbers[ line_counter ] = line_number;
         if ( verbose ) fprintf( stdout, "%d. line number ( %d ) stored\n", line_counter+1, line_number );
     }
     if ( origi_line_numbers_loaded ) line_number = get_new_line_number_by_index0( line_counter ); // Pass 3
     line_counter++;
     if ( txt ) fprintf( txt, "%d ", line_number );
+// printf("*** LN:%d\n", line_number );
 }
 
 void write_line_number_to( FILE *txt, uint16_t line_number_parameter ) {
@@ -223,12 +226,17 @@ unsigned char listBytes( FILE *ptp, FILE *txt, uint16_t counter, unsigned char i
             exit;
         }
     }
+    if ( !counter ) {
+// printf( "!!!BAJ\n" );exit(1);
+    }
+// printf( "*** Begin line. Counter=%d\n", counter );
     for( int i=0; i<counter; i++ ) { // Ez már biztosan soron belül van
         unsigned char byte = fgetc2( ptp );
         if ( byte ) {
             in_line = 1;
             if ( is_BASIC_token( byte ) ) {
                 if ( txt ) print_token( txt, byte );
+// printf( "*** TOKEN:0x%02X\n", byte );
                 last_token = byte;
             } else {
                 if ( last_token == 0x80 || last_token == 0x91 || last_token == 0xCA ) { // GOTO or GOSUB parameter
@@ -261,7 +269,9 @@ unsigned char listBytes( FILE *ptp, FILE *txt, uint16_t counter, unsigned char i
                 i = counter;
             } else {
                 print_line_prefix4( ptp, txt );
+// printf( "*** NextLine. Counter=%d, i=%d\n", counter, i );
                 i += 4;
+                in_line = 1;
             }
         }
     }
@@ -270,10 +280,10 @@ unsigned char listBytes( FILE *ptp, FILE *txt, uint16_t counter, unsigned char i
 
 void listBasicBlock( FILE *ptp, FILE *txt ) {
     static unsigned char in_line = 0; // If true, we are in a basic line
-    unsigned char blockIndex = fgetc( ptp );
+    unsigned char blockIndex = fgetc( ptp ); // tape_block_index
     uint16_t relStartAddr = 0;
     fblockread( &relStartAddr, 2, ptp );
-    uint16_t size = fgetc( ptp );
+    uint16_t size = fgetc( ptp ); // tape block size
     if ( !size ) size = 256;
     // if ( verbose ) fprintf( stdout, "\tBASIC tape block size: %d\n", size );
     in_line = listBytes( ptp, txt, size, in_line );
@@ -285,11 +295,11 @@ unsigned char get_next_block( FILE *ptp, FILE *txt, int *readedBlocksSize ) {
         uint16_t size;
         fblockread( &size, 2, ptp );
         *readedBlocksSize += size + 3;
-        if ( verbose ) fprintf( stdout, "Block size: %d (", size );
+        if ( verbose > 1 ) fprintf( stdout, "Block size: %d (", size );
         int pos = ftell( ptp );
 
         unsigned char tapeBlockType = fgetc( ptp );
-        if ( verbose ) {
+        if ( verbose > 1 ) {
             switch( tapeBlockType ) {
                 case 0x83 : fprintf( stdout, "BASIC programname" ); break;
                 case 0x87 : fprintf( stdout, "BASIC DATA filename" ); break;
@@ -326,6 +336,7 @@ unsigned char get_next_block( FILE *ptp, FILE *txt, int *readedBlocksSize ) {
 
 void ptp_list( FILE *ptp, FILE *txt ) {
     fseek( ptp, 0, SEEK_SET );
+    line_prefix_length = 0;
     line_counter = 0;
     int ptpBlockSumSize = get_ptp_block_size( ptp );
     int readedBlocksSize = 0;
@@ -390,12 +401,15 @@ int main(int argc, char *argv[]) {
         if ( renumber ) {
             if ( verbose ) fprintf( stdout, "Pass 1 for renumber (counting lines) ...\n" );
             ptp_list( ptpFile, 0 );
+            if ( verbose ) fprintf( stdout, "Pass 1 found %d lines\n", line_counter );
             max_line_counter = line_counter;
+
             if ( verbose ) fprintf( stdout, "Pass 2 for renumber (storing line numbers) ...\n" );
-            int size = max_line_counter * sizeof( uint16_t );
-            origi_line_numbers = malloc( size );
+            int origi_line_numbers_array_size = max_line_counter * sizeof( uint16_t );
+            origi_line_numbers = malloc( origi_line_numbers_array_size );
             ptp_list( ptpFile, 0 );
             origi_line_numbers_loaded = 1;
+
             if ( verbose ) fprintf( stdout, "Pass 3 for renumber (renumbering) ...\n" );
             ptp_list( ptpFile, txtFile );
         } else {

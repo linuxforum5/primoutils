@@ -19,22 +19,7 @@
 #define VB 'b'
 
 int verbose = 0;
-
-int showBlocks = 1;
-int showRam = 1;
-int showType = 1;
-int showName = 1;
-int showFilename = 1;
-int showMachineType = 1;
-int showAutostart = 1;
-int showFirstLoadAddr = 1;
-int basicList = 0;
-
-int tapeType = 0; // 0x83:BASIC, 0x87:BASIC DATA
-char programname[17] = "";
-int is_autostart = 0; // is 0xB9 block
-uint16_t first_load_address = 0; // Az első betöltött 0xF9 blokk kezdőcíme
-uint16_t autostart_address = 0; // If tapeType == 0xF9 && blockType = 0xB9
+int dump = 0;
 
 /*
  * Tape blokktípusok:
@@ -86,7 +71,7 @@ int get_ptp_file_size( FILE *ptp, int file_index ) {
             uint16_t size;
             fblockread( &size, 2, ptp );
             if ( verbose ) fprintf( stdout, "%d. ptp file size: %d\n", file_index, size );
-            return size - 3;
+            return size;
         } else {
             fprintf( stderr, "Invalid .ptp file format. Bad first block character: 0x%02X.\n", byte );
             exit(1);
@@ -94,7 +79,7 @@ int get_ptp_file_size( FILE *ptp, int file_index ) {
     }
 }
 
-int get_programname( FILE *ptp, unsigned char block_counter, TapeBlockType *currTapeBlock ) {
+int get_programname_tape_block( FILE *ptp, unsigned char block_counter, TapeBlockType *currTapeBlock ) {
     if ( block_counter != 0 ) {
         fprintf( stderr, "HIBA! Névblokk csak a 0. blokk lehet!\n" );
         exit(1);
@@ -123,7 +108,7 @@ int get_next_tape_block( FILE *ptp, TapeBlockType *currTapeBlock ) {
     currTapeBlock->close_counter = 0;
     if ( verbose ) fprintf( stdout, "  Tape block type: 0x%02X, index=%02x\n", tapeBlockType, blockIndex ); // Itt helyes a ptp_block_size? Nem!!!
     if ( tapeBlockType == 0x83 || tapeBlockType == 0x87 ) {
-        tape_block_size = get_programname( ptp, blockIndex, currTapeBlock );
+        tape_block_size = get_programname_tape_block( ptp, blockIndex, currTapeBlock );
     } else if ( tapeBlockType == 0xF1 || tapeBlockType == 0xF7 || tapeBlockType == 0xF5 || tapeBlockType == 0xF9 ) {
         unsigned char loadAddressL = fgetc( ptp ); // Absolute if 0xF9 else relative
         unsigned char loadAddressH = fgetc( ptp ); // Absolute if 0xF9 else relative
@@ -149,7 +134,7 @@ int get_next_tape_block( FILE *ptp, TapeBlockType *currTapeBlock ) {
     return tape_block_size;
 }
 
-unsigned char get_next_ptp_block( FILE *ptp, int ptp_file_counter, int ptp_block_counter, int *memorySize, TapeBlockType *currTapeBlock ) { // Egy ptp blok felolvasása
+unsigned char get_next_ptp_block( FILE *ptp, int ptp_file_counter, int ptp_block_counter, int *memorySize, TapeBlockType *currTapeBlock, int *ptp_block_sum_size ) { // Egy ptp blok felolvasása
     unsigned char ptpBlockType = fgetc( ptp );
     if ( ptpBlockType == 0x55 || ptpBlockType == 0xAA ) {
         uint16_t ptp_block_size;
@@ -160,7 +145,7 @@ unsigned char get_next_ptp_block( FILE *ptp, int ptp_file_counter, int ptp_block
         while( readed_tape_block_sum_size < ptp_block_size ) { // Egy ptpt blokkon belül több tape blokk is lehet
             readed_tape_block_sum_size += get_next_tape_block( ptp, currTapeBlock );
         }
-
+        *ptp_block_sum_size += readed_tape_block_sum_size + 3;
     } else {
         fprintf( stderr, "Invalid .ptp block type: 0x%02X.\n", ptpBlockType );
         exit(2);
@@ -190,6 +175,13 @@ void show_block_info( int file_index, TapeBlockType bigTapeBlock ) {
     }
     printf( "%s\t%d.\t0x%02X\t%s\t%d\t%d\t%4X\t%X\t%X\n", curfile_printed ? "" : curfile, file_index, bigTapeBlock.type, type_name, bigTapeBlock.tape_block_counter, bigTapeBlock.close_counter, bigTapeBlock.load_address, bigTapeBlock.byte_counter, bigTapeBlock.run_address );
     curfile_printed = 1;
+    if ( dump ) {
+        char dumpname[100];
+        sprintf( dumpname, "block.%d.%d.0x%02X.bin", file_index, dump++, bigTapeBlock.type );
+        FILE * d = fopen( dumpname, "wb" );
+        for( int i=0; i<bigTapeBlock.byte_counter; i++) fputc( bigTapeBlock.bytes[i], d );
+        fclose( d );
+    }
 }
 
 int is_close_type_for( unsigned char main, unsigned char next ) {
@@ -206,7 +198,7 @@ TapeBlockType add_new_tape_block( int file_index, TapeBlockType lastBigTapeBlock
     if ( currTapeBlock.type == lastBigTapeBlock.type || is_close_type_for( lastBigTapeBlock.type, currTapeBlock.type ) ) {
         int is_last_block = is_close_type_for( lastBigTapeBlock.type, currTapeBlock.type  );
         if ( is_last_block || lastBigTapeBlock.load_address + lastBigTapeBlock.byte_counter == currTapeBlock.load_address ) {
-            for( int i=0; i<currTapeBlock.byte_counter; i++ ) lastBigTapeBlock.bytes[ ++lastBigTapeBlock.byte_counter ] = currTapeBlock.bytes[ i ];
+            for( int i=0; i<currTapeBlock.byte_counter; i++ ) lastBigTapeBlock.bytes[ lastBigTapeBlock.byte_counter++ ] = currTapeBlock.bytes[ i ];
             lastBigTapeBlock.tape_block_counter++;
             if ( lastBigTapeBlock.run_address ) printf( "Error: Run address in block????" );
             lastBigTapeBlock.run_address = currTapeBlock.run_address;
@@ -223,21 +215,26 @@ TapeBlockType add_new_tape_block( int file_index, TapeBlockType lastBigTapeBlock
 }
 
 int read_ptp_file( FILE *ptp, int file_index, int *memorySize ) { // Egy ptp szallagállomány beolvasása. Nem feltétlen egy fizikai ptp fájl! Annak lehet egy része is!
-    int ptpBlockSumSize = get_ptp_file_size( ptp, file_index );
-    if ( ptpBlockSumSize <= 0 ) { // EOF
+    int ptpFileSize = get_ptp_file_size( ptp, file_index );
+    if ( ptpFileSize <= 0 ) { // EOF
         return 0;
     } else {
         int memorySize = 0;
         int ptpBlockCounter = 1;
+        int ptp_block_sum_size = 3;
         TapeBlockType currTapeBlock;
-        unsigned char ptpBlockType = get_next_ptp_block( ptp, file_index, ptpBlockCounter, &memorySize, &currTapeBlock );
+        unsigned char ptpBlockType = get_next_ptp_block( ptp, file_index, ptpBlockCounter, &memorySize, &currTapeBlock, &ptp_block_sum_size );
         TapeBlockType lastBigTapeBlock = currTapeBlock;
         while( ptpBlockType != 0xAA ) {
             ptpBlockCounter++;
-            ptpBlockType = get_next_ptp_block( ptp, file_index, ptpBlockCounter, &memorySize, &currTapeBlock );
+            ptpBlockType = get_next_ptp_block( ptp, file_index, ptpBlockCounter, &memorySize, &currTapeBlock, &ptp_block_sum_size );
             lastBigTapeBlock = add_new_tape_block( file_index, lastBigTapeBlock, currTapeBlock );
         }
         show_block_info( file_index, lastBigTapeBlock );
+        if ( ptpFileSize != ptp_block_sum_size ) {
+            printf( "Invalid ptp file size! (%d != %d)\n", ptpFileSize, ptp_block_sum_size );
+            exit(1);
+        }
         return ptpBlockCounter;
     }
 }
@@ -261,20 +258,12 @@ void ptp_fs_file_info( char *ptpFilenameWithPath ) {
 }
 
 void print_usage() {
-    printf( "ptpinfo v%d.%d%c (build: %s)\n", VM, VS, VB, __DATE__ );
-    printf( "View Primo .ptp file informations.\n");
-    printf( "Copyright 2022 by László Princz\n");
+    printf( "ptpblocks v%d.%d%c (build: %s)\n", VM, VS, VB, __DATE__ );
+    printf( "View Primo .ptp filesystem file block informations.\n");
+    printf( "Copyright 2023 by László Princz\n");
     printf( "Usage:\n");
-    printf( "ptpinfo -i <ptp_filename>\n");
-    printf( "-R            : Show RAM size only.\n");
-    printf( "-b            : Show blocks counter only.\n");
-    printf( "-t            : Show type only (BASIC/SYSTEM).\n");
-    printf( "-T            : Show machine type only (A32/A48/A64).\n");
-    printf( "-f            : Show filename with path only.\n");
-    printf( "-F            : Show First load address only.\n");
-//    printf( "-l            : List BASIC program.\n");
-    printf( "-n            : Show program name only.\n");
-    printf( "-a            : Show autostart address only.\n");
+    printf( "ptpblocks -i <ptp_filename>\n");
+    printf( "-d            : Binary dump tape blocks content.\n");
     printf( "-v            : Verbose output.\n");
     exit(1);
 }
@@ -300,16 +289,7 @@ int main(int argc, char *argv[]) {
     int opt = 0;
     char *ptpDir = 0;
     char *ptpFilename = 0;
-    int all = 1;
-    showBlocks = 0; // b
-    showRam = 0; // R
-    showType = 0; // t
-    showName = 0; // n
-    showFilename = 0; // f
-    showMachineType = 0; // T
-    showAutostart = 0;
-    showFirstLoadAddr = 0;
-    while ( ( opt = getopt (argc, argv, "lbRtnafFTv?h:i:") ) != -1 ) {
+    while ( ( opt = getopt (argc, argv, "dv?h:i:") ) != -1 ) {
         switch ( opt ) {
             case -1:
             case ':':
@@ -321,15 +301,9 @@ int main(int argc, char *argv[]) {
             case 'v':
                 verbose = 1;
                 break;
-            case 'b': showBlocks = 1;      all=0; break; // b
-            case 'l': basicList = 1;       all=0; break; // b
-            case 'R': showRam = 1;         all=0; break; // R
-            case 't': showType = 1;        all=0; break; // t
-            case 'n': showName = 1;        all=0; break; // n
-            case 'f': showFilename = 1;    all=0; break; // f
-            case 'T': showMachineType = 1; all=0; break; // T
-            case 'a': showAutostart = 1;   all=0; break; // a
-            case 'F': showFirstLoadAddr = 1;   all=0; break; // a
+            case 'd':
+                dump = 1;
+                break;
             case 'i': // open ptp file
                 if ( is_dir( optarg ) ) { // Input is a direcory
                     ptpDir = copyStr( optarg, 0 );
@@ -339,17 +313,6 @@ int main(int argc, char *argv[]) {
                 break;
         }
     }
-    if ( all ) {
-        showBlocks = 1; // b
-        showRam = 1; // R
-        showType = 1; // t
-        showName = 1; // n
-        showFilename = 1; // f
-        showMachineType = 1; // T
-        showAutostart = 1; // a
-        showFirstLoadAddr = 1; // F
-    }
-
     if ( ptpDir ) {
         ptp_dir_info( ptpDir );
     } else if ( ptpFilename ) {
