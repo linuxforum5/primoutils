@@ -61,6 +61,8 @@ SourceBlock newSourceBlock( unsigned char type ) {
 /********************************************************************************************************************
  * BASIC encoder
  ********************************************************************************************************************/
+// #define BASIC_START 0x4B0B
+#define BASIC_START 0x43EA
 /*
 c54e44c64f52d245534554d34554c34c53c34d44d2414e444f4dce
 455854c4415441c94e505554c4494dd2454144cc4554c74f544fd2554ec946d245
@@ -267,7 +269,7 @@ char* encode_line( char* line, int line_length, unsigned char *encoded_line ) {
 // Program end: 0 0
 SourceBlock encodeBasic( FILE *txt ) { // Encode text into src.bytes
     SourceBlock encoded = newSourceBlock( 'B' ); // Basic source code
-    uint16_t next_line_addr = 0x4B0B;
+    uint16_t next_line_addr = BASIC_START;
     uint16_t line_number = 0;
     unsigned char line[ MAX_LINE_LENGTH ];
     unsigned char encoded_line[ MAX_LINE_LENGTH ];
@@ -297,6 +299,7 @@ unsigned char BCD( unsigned char byte ) { return ( byte / 10 ) * 16 + ( byte % 1
 unsigned char CRC( unsigned char byte ) { crc += byte; return byte; }
 
 uint16_t write_programname_ptptape_block( FILE *ptp, SourceBlock src ) {
+    if ( verbose ) printf( "Write ProgramName block\n" );
     if ( src.byte_counter > 16 ) {
         printf( "Invalid tapename block length: %d\n", src.byte_counter );
         exit( 1 );
@@ -314,12 +317,13 @@ uint16_t write_programname_ptptape_block( FILE *ptp, SourceBlock src ) {
     return src.byte_counter + 7; // + 4 + 3
 }
 
-uint16_t write_basic_ptptape_block( FILE *ptp, SourceBlock src, int from, int length ) {
+uint16_t write_ptptape_data_block( FILE *ptp, unsigned char tape_data_type_code, SourceBlock src, int from, int length ) {
+    if ( verbose ) printf( "Write data block type 0x%02X\n", tape_data_type_code );
     uint16_t ptpBlockSize = length + 6;
     fputc( 0x55, ptp ); // inner ptp block
     fputc( ptpBlockSize % 256, ptp );
     fputc( ptpBlockSize / 256, ptp );
-    fputc( 0xF1, ptp ); // BASIC progam block
+    fputc( tape_data_type_code, ptp ); // 
     crc = 0;
     fputc( CRC( BCD( tape_block_index++ ) ), ptp );
     fputc( CRC( from % 256 ), ptp );
@@ -331,6 +335,7 @@ uint16_t write_basic_ptptape_block( FILE *ptp, SourceBlock src, int from, int le
 }
 
 uint16_t write_basic_last_ptptape_block( FILE *ptp ) {
+    if ( verbose ) printf( "Write last basic block (0x%02X)\n", 0xB1 );
     uint16_t ptpBlockSize = 3;
     fputc( 0xAA, ptp ); // inner ptp block
     fputc( ptpBlockSize % 256, ptp );
@@ -345,7 +350,15 @@ uint16_t write_basic_last_ptptape_block( FILE *ptp ) {
 uint16_t write_basic_source_block( FILE *ptp, SourceBlock src ) {
     uint16_t ptp_block_length = 0;
     for( int i=0; i<src.byte_counter; i+=256 ) {
-        ptp_block_length += write_basic_ptptape_block( ptp, src, i, ( src.byte_counter - i > 255 ) ? 256 : src.byte_counter - i );
+        ptp_block_length += write_ptptape_data_block( ptp, 0xF1, src, i, ( src.byte_counter - i > 255 ) ? 256 : src.byte_counter - i );
+    }
+    return ptp_block_length;
+}
+
+uint16_t write_screen_source_block( FILE *ptp, SourceBlock src ) {
+    uint16_t ptp_block_length = 0;
+    for( int i=0; i<src.byte_counter; i+=256 ) {
+        ptp_block_length += write_ptptape_data_block( ptp, 0xF5, src, i, ( src.byte_counter - i > 255 ) ? 256 : src.byte_counter - i );
     }
     return ptp_block_length;
 }
@@ -353,6 +366,7 @@ uint16_t write_basic_source_block( FILE *ptp, SourceBlock src ) {
 uint16_t write_ptp_block( FILE *ptp, SourceBlock src ) {
     switch( src.type ) {
         case 'B' : return write_basic_source_block( ptp, src ); break;
+        case 'S' : return write_screen_source_block( ptp, src ); break;
         case 'N' : return write_programname_ptptape_block( ptp, src ); break;
         default: printf( "Invalid source type: 0x%02X\n", src.type ); exit(1); break;
     }
@@ -363,6 +377,7 @@ void create_ptp_from( FILE *ptp, SourceBlock srcs[], int sourceBlockCounter ) {
     uint16_t ptp_content_length = 3;
     fputc( 0, ptp ); // placegholder for ptp size
     fputc( 0, ptp ); // 
+printf( "Block counter = %d\n", sourceBlockCounter );
     for( int i=0; i<sourceBlockCounter; i++ ) {
         ptp_content_length += write_ptp_block( ptp, srcs[ i ] );
     }
@@ -395,6 +410,18 @@ int ext_is( const char* filename, const char* ext ) {
  * SourceBlock functions
  ********************************************************************************************************************/
 
+SourceBlock create_source_mirror_block_from_file( unsigned char type, const char* filename, unsigned char xor ) {
+    SourceBlock src = newSourceBlock( type ); // Screen data
+    FILE *f = fopen( filename, "rb" ); // 0 if not source
+    if ( !f ) {
+        fprintf( stderr, "Error opening %s.\n", filename );
+        exit(4);
+    }
+    for( src.bytes[ src.byte_counter ] = fgetc( f ); !feof( f ); src.bytes[ src.byte_counter ] = xor ^ fgetc( f ) ) src.byte_counter++;
+    fclose( f );
+    return src;
+}
+
 SourceBlock create_source_block_from_BASIC_file( const char* filename ) {
     SourceBlock src = newSourceBlock( 'B' ); // Basic source code
     FILE *f = fopen( filename, "rb" ); // 0 if not source
@@ -409,7 +436,10 @@ SourceBlock create_source_block_from_BASIC_file( const char* filename ) {
 }
 
 SourceBlock create_source_block_from_file( const char* filename ) {
-    if ( ext_is( filename, "txt" ) || ext_is( filename, "bas" ) ) return create_source_block_from_BASIC_file( filename );
+    if ( ext_is( filename, "bas" ) || ext_is( filename, "txt" ) ) return create_source_block_from_BASIC_file( filename );
+    if ( ext_is( filename, "scr" ) ) return create_source_mirror_block_from_file( 'S', filename, 0 );
+    if ( ext_is( filename, "rcs" ) ) return create_source_mirror_block_from_file( 'S', filename, 255 );
+    if ( ext_is( filename, "pnm" ) ) return create_source_mirror_block_from_file( 'N', filename, 0 );
     else {
         printf( "Invalid file type!\n" );
         exit( 3 );
@@ -426,12 +456,22 @@ SourceBlock create_name_block() {
  ********************************************************************************************************************/
 void print_usage() {
     printf( "ptpcreate v%d.%d%c (build: %s)\n", VM, VS, VB, __DATE__ );
-    printf( "Create a new Primo .ptp file from input source data.\n");
-    printf( "If source file has .txt os .bas extension, created a BASIC ptp file.\n");
+    printf( "Create a new Primo .ptp file from input source blocks.\n");
+    printf( "The -i option define a block source file. For many block use many -i options in necessery order.\n");
+    printf( "The source block file extension define the source block type, for ptp creating.\n");
+    printf( "The useable extensions are the next:\n");
+    printf( "- .pnm         : programname for load (0x83).\n");
+    printf( "- .bas or .txt : define BASIC program code (0xF1).\n");
+    printf( "- .scr         : define screen data (0xF5).\n");
+    printf( "- .rcs         : define inverz screen data (0xF5).\n");
+    printf( "- .sys or .bin : Binary machine language program code (0xF9). It is necessary, the filename contains the absolute load address int the next format: -ORGxxxxH-.\n");
+    printf( "- .run         : Run block for machine code (0xB9). 2 bytes only.\n");
+    printf( "For absolute load address, and au- .sys or .bin : Binary machine language program code.\n");
     printf( "Copyright 2023 by László Princz\n");
     printf( "Usage:\n");
     printf( "ptpblocks -i <source_file> -o <created_ptp_filename>\n");
     printf( "-n name_on_tape : The tape name. Default name created from ptp filename.\n");
+    printf( "-a address      : If you want, to sart the program after load automatically on the define address.\n");
     printf( "-v              : Verbose output.\n");
     exit(1);
 }
@@ -441,6 +481,7 @@ int main(int argc, char *argv[]) {
     FILE *ptp = 0;
     FILE *txt = 0;
     SourceBlock srcs[10];
+    int need_default_name = 1;
     int sourceBlockCounter = 0;
     srcs[ sourceBlockCounter++ ] = create_name_block();
     while ( ( opt = getopt (argc, argv, "v?h:i:o:") ) != -1 ) {
@@ -460,19 +501,28 @@ int main(int argc, char *argv[]) {
                     srcs[ 0 ].bytes[ srcs[0].byte_counter ] = optarg[ srcs[ 0 ].byte_counter ];
                 }
                 srcs[ 0 ].bytes[ srcs[ 0 ].byte_counter ] = 0;
+                need_default_name = 0;
                 break;
             case 'i': // open ptp file
                 srcs[ sourceBlockCounter++ ] = create_source_block_from_file( optarg );
+                if ( srcs[ sourceBlockCounter-1 ].type == 'N' ) { // Defined name block
+                    sourceBlockCounter--;
+                    srcs[ 0 ] = srcs[ sourceBlockCounter ];
+                    if ( verbose ) printf( "New name block: '%s'\n", srcs[ 0 ].bytes );
+                    need_default_name = 0;
+                }
                 break;
             case 'o': // open txt file
                 ptp = fopen( optarg, "wb" );
-                for( srcs[0].byte_counter=0; srcs[0].byte_counter<16 && optarg[ srcs[0].byte_counter ] && optarg[ srcs[0].byte_counter ] != '.'; srcs[0].byte_counter++ ) {
-                    srcs[ 0 ].bytes[ srcs[0].byte_counter ] = optarg[ srcs[0].byte_counter ];
-                }
-                srcs[ 0 ].bytes[ srcs[0].byte_counter ] = 0;
                 if ( !ptp ) {
                     fprintf( stderr, "Error creating %s.\n", optarg );
                     exit(4);
+                }
+                if ( need_default_name ) {
+                    for( srcs[0].byte_counter=0; srcs[0].byte_counter<16 && optarg[ srcs[0].byte_counter ] && optarg[ srcs[0].byte_counter ] != '.'; srcs[0].byte_counter++ ) {
+                        srcs[ 0 ].bytes[ srcs[0].byte_counter ] = optarg[ srcs[0].byte_counter ];
+                    }
+                    srcs[ 0 ].bytes[ srcs[0].byte_counter ] = 0;
                 }
                 break;
         }

@@ -14,8 +14,8 @@ $(BASENAME): $(BASENAME).asm
 	cat $(TEMP_BIN_NAME) >> $(BASENAME).pp
 	rm $(TEMP_BIN_NAME)
 	pp2ptp -i $(BASENAME).pp
-	ptp2wav -i $(BASENAME).ptp -o $(BASENAME).wav
 	ptp2c -N -n turbo_loader -i $(BASENAME).ptp -o $(BASENAME).c
+	cp *.c /home/teszt/workspace/retro/primo/utils/github.com/primoutils/src/ptp2turbo/
 
 clean:
 	rm -f *.bak out/*.pri *.pp *.ptp *.bin *.hex *.wav $(BASENAME)

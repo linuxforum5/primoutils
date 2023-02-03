@@ -19,7 +19,8 @@
 #define VB 'b'
 
 int verbose = 0;
-int dump = 0;
+int dump = 0; // Ha 0, akkor nincs dump, különben 1-től a dumpéok indexe
+char *dump_name_prefix = "block";
 
 /*
  * Tape blokktípusok:
@@ -177,7 +178,15 @@ void show_block_info( int file_index, TapeBlockType bigTapeBlock ) {
     curfile_printed = 1;
     if ( dump ) {
         char dumpname[100];
-        sprintf( dumpname, "block.%d.%d.0x%02X.bin", file_index, dump++, bigTapeBlock.type );
+        switch( bigTapeBlock.type ) {
+            case 0X83 : sprintf( dumpname, "%s.block.%d.%d.pnm", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
+            case 0XF1 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.bas", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
+            case 0XF5 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.scr", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
+            case 0XF7 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.dat", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
+            case 0XF9 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.sys", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
+            case 0XB9 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.run", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
+            default: sprintf( dumpname, "%s.block.%d.%d.0x%02X.bin", dump_name_prefix, file_index, dump++, bigTapeBlock.type );
+        }
         FILE * d = fopen( dumpname, "wb" );
         for( int i=0; i<bigTapeBlock.byte_counter; i++) fputc( bigTapeBlock.bytes[i], d );
         fclose( d );
@@ -242,12 +251,14 @@ int read_ptp_file( FILE *ptp, int file_index, int *memorySize ) { // Egy ptp sza
 void ptp_fs_file_info( char *ptpFilenameWithPath ) {
     FILE *ptp = 0;
     if ( ptp = fopen( ptpFilenameWithPath, "rb" ) ) {
+        dump_name_prefix = ptpFilenameWithPath;
         curfile = ptpFilenameWithPath;
         curfile_printed = 0;
         int memorySize = 0;
         int ptpBlockCounter = 0; // Összesen ennyi ptp block van
         int currPtpBlockCounter = 0; // Az aktuális fájlben ennyi ptp block van
         for( int file_counter = 1; currPtpBlockCounter = read_ptp_file( ptp, file_counter, &memorySize ); file_counter++ ) {
+            if ( dump ) dump = 1; // inicialize dump counter for nes file block
             ptpBlockCounter += currPtpBlockCounter;
         }
         fclose( ptp );

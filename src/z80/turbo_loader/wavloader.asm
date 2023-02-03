@@ -1,4 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; https://www.nongnu.org/z80asm/index.html
+;;; http://www.ep128.hu/Ep_Konyv/UM0080.pdf
 ;;; 1 bit = 15.5us
 ;;; 1 byte = 124us + 16us | 8 bit + 16us ( -1.25 + 2.5 + 4.25 + 8.75 + 1.75 | 5.5 + 10.5 )
 ;;; ----p--------       ---h---   -------  | l,h = 50/100
@@ -10,19 +12,20 @@ PORT_MIRROR:     EQU     $403B           ; Port mirror byte
 ; LOAD_FROM:       EQU     $E800           ; Load from
 ; LOAD_COUNTER:    EQU     $1800           ; Loaded bytes counter
 DSPHND:          EQU     $0015
+STATUSL:         EQU     $E800           ; A bal felső sarok
 STATUS:          EQU     $EA99           ; A státusz pozíciója
+BASIC:           EQU     $1A33           ; Fejlesztési teljes romlista 15. oldal
+BASIC_PRG_START: EQU     $43EA
+BASIC_PRG_START_POINTER: EQU $40A4
+BASIC_PRG_END_POINTER:   EQU $40F9
+BASIC_RUN_ADDR:  EQU     $1EA3
+BASIC_CLEAR:     EQU     $1E7A
 
                 ORG $E400                ; CALL( 58368, DE ) RETRUN HL
 
 START:                    ; 4MHz ;
     LD HL, LOADING_MSG
-WRTMSG:
-    LD A,(HL)
-    OR A
-    JR Z, RUN
-    CALL DSPHND
-    INC HL
-    JR WRTMSG
+    CALL WRTMSG
 
 ;    LD BC, LOAD_COUNTER-1 ;      ; CLS eleje
 ;    LD HL, LOAD_FROM      ;      ;
@@ -35,7 +38,6 @@ WRTMSG:
 ;    LD DE, LOAD_FROM+1    ;      ;
 ;    LD (HL), 0            ;      ; Clear current byte on screen
 ;    LDIR                  ;      ; CLS vége
-RUN:
     DI                    ; 1    ;
     LD A, (PORT_MIRROR)   ;
     AND 127               ; 1.75 ; Reset NMI bit
@@ -43,6 +45,11 @@ RUN:
     LD (PORT_MIRROR), A   ;      ;;;;;;;; end DI
 
 ;;; A tényleges betöltő modul. Innentől kezdve figyeli a magnójelet, olvassa a fájl elejét, a header-t.
+    EXX
+    LD HL, STATUSL
+    LD DE, STATUSL+1
+    LD (HL), $FF
+    EXX
     LD DE, 1
     LD HL, 0
 PRE_HIGH0:                ;      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Drop first high samples
@@ -66,67 +73,89 @@ PRE_LOW0:                 ;      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Drop firs
     AND 4                 ; 1.75 ;
     JR Z, PRE_LOW0        ; 3    ;;; LOW samples skipped
 
-;    CALL GET_BYTE         ; 4.25 ; Block type in B: 0=start block, 1=data block
-;    LD A, B               ;      ;
-;    CP 0
-;    JR NZ, DATA_BLOCK     ;      ; If type == 0, then it is the start block. Start address in HL
-;    PUSH HL
-;    RET
-;DATA_BLOCK:
-    CALL GET_BYTE         ; 4.25 ;
+READ_BLOCK:
+    CALL GET_BYTE         ; 4.25 ; Read Load address into HL
     LD L, B               ; 1    ;
-;    NOP
-    CALL GET_BYTE         ; 4.25 ;
-    LD H, B               ; 1    ; Run address after load
-    PUSH HL               ; 2.75 ; For start: RET
-
-    CALL GET_BYTE         ; 4.25 ;
-    LD L, B               ; 1    ;
-;    NOP
     CALL GET_BYTE         ; 4.25 ;
     LD H, B               ; 1    ; First byte address in HL
-;    NOP
 
-    CALL GET_BYTE         ; 4.25 ;
+    CALL GET_BYTE         ; 4.25 ; Read Byte counter into DE
     LD E, B               ; 1    ;
-;    NOP
     CALL GET_BYTE         ; 4.25 ;
     LD D, B               ; 1    ; Byte counter in DE
-;    NOP
+
+    LD A, B               ;      ; Init status line on screen
+    INC A
+    EXX
+    LD C, A
+    LD B, 0
+    LDIR
+    EXX                   ;      ; Write line end. HL contains last line address
 
 LOAD_DATA:
     CALL GET_BYTE         ; 4.25 ; +6.75-9.5
     LD (HL), B            ; 1.75 ; +1.75
     INC HL                ; 1.5  ;
     DEC DE                ; 1.5  ;
-    LD A, D               ; 1    ;
-    LD (STATUS), A        ; 3.25 ;
-    OR E                  ; 1    ;
+
+    LD A, D
+    CP E
+    JR NZ, NO_STATUS      ; 3    ; Decrement status line if D==E
+    EXX
+    LD (HL), 0
+    DEC HL
+    EXX
+NO_STATUS:
+    OR E                  ; 1    ; A OR E, azaz D OR E, vagyis csak akkor nulla, ha DE==0
     JR NZ, LOAD_DATA      ; 3    ; +17.5 While DE != 0
-                                 ; All data loaded
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; All block data loaded ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    CALL GET_BYTE         ; 4.25 ; Read next block? byte
+    EXX
+    LD HL, STATUSL
+    LD DE, STATUSL+1
+    LD (HL), 255
+    EXX
+    DEC B                 ;      ; 
+    JR Z, READ_BLOCK      ;      ; If B==1, read next block
+    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; End of load ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+    DEC B                 ;      ; B contains next Block information
+    JR Z, RET_BASIC       ;      ; If B==2, return to BASIC command line. Last block is BASIC code. HL contanis first free byte address
+    DEC B
+    JP Z, BASIC_RUN       ;      ; If B==3 BASIC RUN
+    CALL GET_BYTE         ;      ; Else read load address
+    LD E, B
+    CALL GET_BYTE
+    LD D, B
+    PUSH DE               ;      ; load address in DE
+    RET
 
-    EI                    ; 1    ;
-    LD A, (PORT_MIRROR)   ;
+BASIC_RUN:                ;      ; A Z flag 0
+    CALL INIT_BASIC
+    LD HL, $1D1E
+    PUSH HL
+    LD HL, (BASIC_PRG_START_POINTER)         ;      ; HL <- BASIC PROGRAM START ADDRESS
+    XOR A
+    CP 0                  ;      ; Set Z flag, for BASIC RUN
+    JP BASIC_RUN_ADDR
+
+RET_BASIC:
+    CALL INIT_BASIC
+;    CALL BASIC_CLEAR      ;      ; CALL BASIC CLEAR rutin
+    JP $197E
+    JP BASIC
+
+INIT_BASIC:
+    LD (BASIC_PRG_END_POINTER), HL
+    CALL ENABLED_INTERRUPTS
+    RET
+
+ENABLED_INTERRUPTS:
+    EI                    ; 1    ;;;;;;;; bedign EI ;;;;;;;;;;;;;;;;;;;;;
+    LD A, (PORT_MIRROR)   ;      ;
     OR 128                ; 1.75 ; Set NMI bit
-    OUT (PORT), A         ; 2.75 ; 
-    LD (PORT_MIRROR), A   ;      ;;;;;;;; end EI
-
-;WAIT:
-;    IN A, (55)            ; Check RETURN key
-;    AND 1                 ; Primo füzetek - Szoftver 153. oldal
-;    JR Z, WAIT
-
-;;;;;;;;;;;;;;;;;;;;;; Teljes betöltés utáni várakozás
-;;    LD DE, 2000
-;;POSTWAIT:
-;;    DEC DE
-;;    LD A, D
-;;    OR E
-;;    JR NZ, POSTWAIT
-
-    RET	                  ; 2.5  ; Run start address
-;    POP HL
-;    JP START
+    OUT (PORT), A         ; 2.75 ;
+    LD (PORT_MIRROR), A   ;      ;;;;;;;; end EI ;;;;;;;;;;;;;;;;;;;;;;;;
+    RET
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; A küldött bájtok ideje 48kHz-en (76.8kHz) sample = 13,020833333us ~ 13us
@@ -181,5 +210,29 @@ HIGH:
 ;;; Byte in B                    ;
     RET                   ; 2.5  ;
 
-LOADING_MSG:
-    db $0C,$02,"                ",$0D,"is turbo loading",$0
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Üzenet kiírása a képernyőre
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+WRTMSG:
+    LD A,(HL)
+    OR A
+    RET Z
+    CALL DSPHND
+    INC HL
+    JR WRTMSG
+
+;RUN10:
+;    db 0,"10:",0
+
+;BASIC_RUN:                ; Ennek a címkének az értékét a ptp2turbo is kiszámolja a program végéből. END - 44
+;    CALL $1EA3
+;    JP BASIC
+;    NOP
+;;    LD HL, $1D1E          ; 4    ; 3 bytes : 0x21 n n
+;;    PUSH HL               ; 2.75 ; 1 byte  : 0xE5
+;;    JP $1B5D              ; 2.5  ; 3 bytes : 
+
+LOADING_MSG:              ; END - 39
+    db $0C,$02,$0D,"                ",$0D,"is turbo loading",$01
+END:
+    db $0

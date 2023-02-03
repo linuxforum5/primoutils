@@ -205,9 +205,15 @@ void write_not_line_number_character_to( FILE *txt, unsigned char byte ) {
     }
 }
 
+#define GOTO 0x8D
+#define GOSUB 0x91
+#define RESTORE 0x90
+#define THEN 0xCA
+
 /**
  * 0x8D - GOTO sorszam(,sorszam)*
  * 0x91 - GOSUB sorszam(,sorszam)*
+ * 0x90 - RESTORE [sorszam]
  * 0xCA - THEN sorszam
  */
 unsigned char listBytes( FILE *ptp, FILE *txt, uint16_t counter, unsigned char in_line ) {
@@ -239,7 +245,7 @@ unsigned char listBytes( FILE *ptp, FILE *txt, uint16_t counter, unsigned char i
 // printf( "*** TOKEN:0x%02X\n", byte );
                 last_token = byte;
             } else {
-                if ( last_token == 0x80 || last_token == 0x91 || last_token == 0xCA ) { // GOTO or GOSUB parameter
+                if ( last_token == GOTO || last_token == GOSUB || last_token == RESTORE || last_token == THEN ) { // GOTO or GOSUB parameter
                     if ( byte >= '0' && byte <= '9' ) { // number
                         last_line_number_parameter = 10 * last_line_number_parameter + byte - '0';
                     } else { // not a number character

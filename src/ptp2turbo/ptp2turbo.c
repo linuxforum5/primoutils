@@ -40,6 +40,7 @@ const unsigned char bottom = POS_PEAK;
 // const unsigned char top  = SILENCE;
 const unsigned char top  = NEG_PEAK;
 int verbose = 0;
+int autoBasicRun = 0;
 
 /* WAV file header structure */
 /* should be 1-byte aligned */
@@ -168,7 +169,7 @@ void save_loader( FILE *wav ) {
     write_loader_name_block( wav, "Turbo loader" );
     unsigned char block_index = 1;
 
-    unsigned int name_index_from = turbo_loader.byte_counter - 35;
+    unsigned int name_index_from = turbo_loader.byte_counter - 36;
     unsigned int name_length = strlen( payload.name );
     for( unsigned int i=0; i<name_length; i++ ) {
         turbo_loader.bytes[ name_index_from + i ] = payload.name[ i ];
@@ -221,17 +222,42 @@ void save_turbo_addr( unsigned int addr, FILE *wav ) {
 void save_turbo_header( FILE *wav ) {
 //    wav_write_sample( wav, top, tick );    // ~ 48us
     wav_write_sample( wav, bottom, tick ); // ~ 48us synchron
-//    save_byte( 1, wav );                   // Block type 1 = data
-//    wav_write_sample( wav, top, tick );
-    save_turbo_addr( payload.run_address, wav );               // run address
-    save_turbo_addr( payload.load_address, wav );              // load address
-    save_turbo_addr( payload.byte_counter, wav );              // byte counter
+}
+
+void save_turbo_block_header( PTP_BLOCK_DATA block, FILE *wav ) {
+    save_turbo_addr( block.load_address, wav );              // load address
+    save_turbo_addr( block.byte_counter, wav );              // byte counter
+printf( "Create turbo block (size=0x%04X)\n", block.byte_counter );
+    // printf( "Create Big Turbo Block with size 0x%04X\n", block.byte_counter );
+    wav_write_sample( wav, top, block.byte_counter/1200*tick ); // For line writeing 80f0(33008) esetén 1A(26)*tick
+}
+
+void save_payload_block_selector( int last, FILE *wav  ) {
+    if ( last ) { // Last block
+        if ( autoBasicRun ) {
+            save_turbo_byte( 3, wav ); // 0 == RUN next ADDRESS or BASIC
+        } else if ( payload.run_address ) { // Ha nem nulla az indulási cím
+            save_turbo_byte( 0, wav ); // 0 == RUN next ADDRESS or BASIC
+            save_turbo_addr( payload.run_address, wav );    // run address
+        } else {
+            save_turbo_byte( 2, wav ); // 2 == RETURN TO BASIC
+        }
+    } else {
+        save_turbo_byte( 1, wav ); // 1 == Read next block
+    }
+
+}
+
+void save_payload_block( PTP_BLOCK_DATA block, FILE *wav, int last ) {
+    save_turbo_block_header( block, wav );
+    for( unsigned int i = 0; i < block.byte_counter; i++ ) save_turbo_byte( block.bytes[ i ], wav ); // save data content
+    save_payload_block_selector( last, wav );
 }
 
 void save_payload( FILE *wav ) {
-    save_turbo_header( wav );
-    for( unsigned int i = 0; i < payload.byte_counter; i++ ) {
-        save_turbo_byte( payload.bytes[ i ], wav );
+    save_turbo_header( wav ); // Szinkorn hullm kiírása
+    for( unsigned int block_index0 = 0; block_index0<payload.block_counter; block_index0++ ) {
+        save_payload_block( payload.blocks[ block_index0 ], wav, block_index0 == payload.block_counter-1 );
     }
 }
 
@@ -244,6 +270,7 @@ void print_usage() {
     printf( "Copyright 2023 by László Princz\n");
     printf( "Usage:\n");
     printf( "ptp2turbo -i <ptp_filename> -o <c_filename>\n");
+    printf( "-a      : BASIC auto RUN command after load.\n");
     printf( "-v      : Verbose mode.\n");
     exit( 1 );
 }
@@ -252,13 +279,14 @@ int main(int argc, char *argv[]) {
     int opt = 0;
     FILE *wav = 0;
     FILE *ptp = 0;
-    while ( ( opt = getopt (argc, argv, "v?h:i:o:") ) != -1 ) {
+    while ( ( opt = getopt (argc, argv, "va?h:i:o:") ) != -1 ) {
         switch ( opt ) {
             case -1:
             case ':': break;
             case '?':
             case 'h': print_usage(); break;
             case 'v': verbose = 1; break;
+            case 'a': autoBasicRun = 1; break;
             case 'i': // open ptp file
                 ptp = fopen( optarg, "rb" );
                 if ( !ptp ) {
@@ -276,7 +304,13 @@ int main(int argc, char *argv[]) {
         }
     }
     if ( ptp && wav ) {
-        payload = load_payload_from_ptp( ptp, verbose );
+        payload = load_payload_from_ptp( ptp, verbose, 0 ); // turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
+        // payload = load_payload_from_ptp( ptp, verbose, 0 ); // turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
+//??        payload = load_payload_from_ptp( ptp, verbose, 0x1B5D ); // http://www.trs-80.com/wordpress/zaps-patches-pokes-tips/internal/
+        // payload = load_payload_from_ptp( ptp, verbose, 0x4433 ); // http://www.trs-80.com/wordpress/zaps-patches-pokes-tips/internal/
+        // payload = load_payload_from_ptp( ptp, verbose, 0x1D1E ); // http://www.trs-80.com/wordpress/zaps-patches-pokes-tips/internal/
+        // payload = load_payload_from_ptp( ptp, verbose, 0x1A33 ); // GOTO BASIC COMMAND MODE. turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
+        // payload = load_payload_from_ptp( ptp, verbose, turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
         wav_init( wav );
         save_loader( wav );
         wav_write_silence( wav, 20000 );
