@@ -21,8 +21,8 @@ ptpinfo: $(SRC)/ptpinfo.c
 	$(WCC) -Isrc/lib -o $(WBIN)/ptpinfo $(SRC)/ptpinfo.c $(SRC)/lib/fs.c
 
 ptpblocks: $(SRC)/ptpblocks.c
-	$(CC) -Isrc/lib -o $(BIN)/ptpblocks $(SRC)/ptpblocks.c $(SRC)/lib/fs.c
-	$(WCC) -Isrc/lib -o $(WBIN)/ptpblocks $(SRC)/ptpblocks.c $(SRC)/lib/fs.c
+	$(CC) -Isrc/lib -Isrc/tlib -o $(BIN)/ptpblocks $(SRC)/ptpblocks.c $(SRC)/lib/fs.c $(SRC)/lib/basic.c $(SRC)/tlib/gifenc.c
+	$(WCC) -Isrc/lib -Isrc/tlib -o $(WBIN)/ptpblocks $(SRC)/ptpblocks.c $(SRC)/lib/fs.c $(SRC)/lib/basic.c $(SRC)/tlib/gifenc.c
 
 ptp2txt: $(SRC)/ptp2txt.c
 	$(CC) -Isrc/lib -o $(BIN)/ptp2txt $(SRC)/ptp2txt.c $(SRC)/lib/fs.c

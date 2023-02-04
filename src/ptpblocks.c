@@ -13,6 +13,8 @@
 #include "getopt.h"
 #include <libgen.h>
 #include "lib/fs.h"
+#include "lib/basic.h"
+#include "tlib/gifenc.h"
 
 #define VM 0
 #define VS 1
@@ -20,8 +22,57 @@
 
 int verbose = 0;
 int dump = 0; // Ha 0, akkor nincs dump, különben 1-től a dumpéok indexe
+int decode_basic = 0; // If 1, the basic block decoded to txt
+int create_gif = 0; // If 1 create a gif
+int utf8 = 0;
 char *dump_name_prefix = "block";
 
+/*****************************************************************************************************************************
+ *** GIF
+ *****************************************************************************************************************************/
+void create_gif_file( const char *fn, unsigned char* pixels, uint16_t size ) {
+    int w = 256, h = size*8/w;
+    /* create a GIF */
+    ge_GIF *gif = ge_new_gif(
+        fn,  /* file name */
+        w, h,       /* canvas size */
+        ( uint8_t [] ) {  /* palette */
+            0x00, 0x00, 0x00, /* 0 -> black */
+            0xFF, 0xFF, 0xFF, /* 1 -> white */
+        },
+        1,              /* palette depth == log2(# of colors) */
+        -1,             /* no transparency */
+        0               /* infinite loop */
+    );
+    /* draw some frames */
+    for( int pixel=0; pixel<w*h; pixel+=8 ) {
+        int bitV = 128;
+        for( int bit=0; bit<8; bit++ ) {
+            gif->frame[ pixel+bit ] = ( pixels[ pixel/8 ] & bitV ) ? 1 : 0;
+            bitV /= 2;
+        }
+    }
+    ge_add_frame( gif, 10 );
+    /* remember to close the GIF */
+    ge_close_gif(gif);
+}
+/*****************************************************************************************************************************
+ *** BASIC
+ *****************************************************************************************************************************/
+void create_basic_list( const char *fn, const unsigned char* bytes, uint16_t size ) {
+    FILE *f = fopen( fn, "wb" );
+    while( ( bytes[0] || bytes[1] ) && size ) {
+        BASIC_LINE bl = decode_basic_line( bytes, size, utf8 );
+        fprintf( f, "%d %s\n", bl.line_number, bl.text_line );
+        bytes += bl.bin_line_full_length;
+        size -= bl.bin_line_full_length;
+    }
+    fclose( f );
+}
+
+/*****************************************************************************************************************************
+ *** TAPE
+ *****************************************************************************************************************************/
 /*
  * Tape blokktípusok:
  * Név blokkok
@@ -187,9 +238,23 @@ void show_block_info( int file_index, TapeBlockType bigTapeBlock ) {
             case 0XB9 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.run", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
             default: sprintf( dumpname, "%s.block.%d.%d.0x%02X.bin", dump_name_prefix, file_index, dump++, bigTapeBlock.type );
         }
-        FILE * d = fopen( dumpname, "wb" );
-        for( int i=0; i<bigTapeBlock.byte_counter; i++) fputc( bigTapeBlock.bytes[i], d );
-        fclose( d );
+        if ( bigTapeBlock.type == 0xF5 && create_gif ) {
+            int ei = strlen( dumpname )-3;
+            dumpname[ ei++ ] = 'g';
+            dumpname[ ei++ ] = 'i';
+            dumpname[ ei++ ] = 'f';
+            create_gif_file( dumpname, bigTapeBlock.bytes, bigTapeBlock.byte_counter );
+        } else if ( bigTapeBlock.type == 0xF1 && decode_basic ) {
+            int ei = strlen( dumpname )-3;
+            dumpname[ ei++ ] = 't';
+            dumpname[ ei++ ] = 'x';
+            dumpname[ ei++ ] = 't';
+            create_basic_list( dumpname, bigTapeBlock.bytes, bigTapeBlock.byte_counter );
+        } else {
+            FILE * d = fopen( dumpname, "wb" );
+            for( int i=0; i<bigTapeBlock.byte_counter; i++) fputc( bigTapeBlock.bytes[i], d );
+            fclose( d );
+        }
     }
 }
 
@@ -274,6 +339,9 @@ void print_usage() {
     printf( "Copyright 2023 by László Princz\n");
     printf( "Usage:\n");
     printf( "ptpblocks -i <ptp_filename>\n");
+    printf( "-g            : GIF screen block dumps. If use this option, the dump create GIF image instead of binary screen memory dump.\n");
+    printf( "-t            : TXT BASIC block dumps. If use this option, the dump print BASIC source code instead of binary BASIC memory dump.\n");
+    printf( "-u            : Use utf8 for BASIC decoding.\n");
     printf( "-d            : Binary dump tape blocks content.\n");
     printf( "-v            : Verbose output.\n");
     exit(1);
@@ -300,7 +368,7 @@ int main(int argc, char *argv[]) {
     int opt = 0;
     char *ptpDir = 0;
     char *ptpFilename = 0;
-    while ( ( opt = getopt (argc, argv, "dv?h:i:") ) != -1 ) {
+    while ( ( opt = getopt (argc, argv, "utgdv?h:i:") ) != -1 ) {
         switch ( opt ) {
             case -1:
             case ':':
@@ -314,6 +382,15 @@ int main(int argc, char *argv[]) {
                 break;
             case 'd':
                 dump = 1;
+                break;
+            case 't':
+                decode_basic = 1;
+                break;
+            case 'u':
+                utf8 = 1;
+                break;
+            case 'g':
+                create_gif = 1;
                 break;
             case 'i': // open ptp file
                 if ( is_dir( optarg ) ) { // Input is a direcory
