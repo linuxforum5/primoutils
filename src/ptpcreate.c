@@ -46,6 +46,8 @@ typedef struct {
     uint16_t load_address;  // A betöltés kezőcíme
     uint16_t byte_counter;  // A betöltendő bájtok száma összesen a kezdőcímtől folytonosan
     uint16_t run_address;   // A betöltés után erre a címre kell ugrani, vagy 0
+    uint16_t __inverz;      // If need inverz conversion. Only for screen block
+    uint16_t __utf8;        // If need utf8->primo preconverzion. Only for BASIC text block
 } SourceBlock;
 
 SourceBlock newSourceBlock( unsigned char type ) {
@@ -55,6 +57,8 @@ SourceBlock newSourceBlock( unsigned char type ) {
     sb.load_address = 0;
     sb.byte_counter = 0;
     sb.run_address = 0;
+    sb.__inverz = 0;
+    sb.__utf8 = 0;
     return sb;
 }
 
@@ -235,31 +239,39 @@ int get_line_from( FILE *f, unsigned char* line, uint16_t *line_number ) {
 #define REM 0x93
 #define DATA 0x88
 
-char* encode_line( char* line, int line_length, unsigned char *encoded_line ) {
+char* encode_line( char* line, int line_length, unsigned char *encoded_line, int utf8 ) {
     int encoded_length = 0;
     unsigned char token = 0;
     int apostrofe_mode = 0;
     int REM_mode = 0; // token = 0x93
     int DATA_mode = 0; // token = 0x88
-    for( int i=0; i<line_length; i++ ) {
+    for( int i=0; i<line_length; i++ ) { // i = next_char start position
+        char next_char = line[ i ];
+        int next_char_start_position = i;
+        if ( utf8 && ( i < line_length-1 ) ) {
+            next_char = utf2primo( line[ i ], line[ i+1 ] );
+            if ( next_char != line[ i ] ) { // was utf8 conversion
+                i++;
+            }
+        }
         int length = line_length-i; // Hátralévő hossz
         if ( REM_mode ) {
-            encoded_line[ encoded_length++ ] = line[ i ];
-        } else if ( line[ i ] == '"' ) { // Idézőjel üzemmód
+            encoded_line[ encoded_length++ ] = next_char;
+        } else if ( next_char == '"' ) { // Idézőjel üzemmód
             apostrofe_mode = 1 - apostrofe_mode;
-            encoded_line[ encoded_length++ ] = line[ i ];
+            encoded_line[ encoded_length++ ] = next_char;
         } else if ( apostrofe_mode ) {
-            encoded_line[ encoded_length++ ] = line[ i ];
-            if ( line[ i ] == ':' ) DATA_mode = 0;
+            encoded_line[ encoded_length++ ] = next_char;
+            if ( next_char == ':' ) DATA_mode = 0;
         } else if ( DATA_mode ) {
-            encoded_line[ encoded_length++ ] = line[ i ];
-        } else if ( token = get_token( line+i, &length ) ) { // Az i. indextől kezdve van egy token
+            encoded_line[ encoded_length++ ] = next_char;
+        } else if ( token = get_token( line+next_char_start_position, &length ) ) { // Az i. indextől kezdve van egy token
             encoded_line[ encoded_length++ ] = token;
             i += length - 1;
             REM_mode = token == REM;
             DATA_mode = token == DATA;
         } else { // i. index egy az egyben másolandó, mivel nem token
-            encoded_line[ encoded_length++ ] = line[ i ];
+            encoded_line[ encoded_length++ ] = next_char;
         }
     }
     encoded_line[ encoded_length ] = 0;
@@ -267,7 +279,7 @@ char* encode_line( char* line, int line_length, unsigned char *encoded_line ) {
 
 // Line: NextRowAddrL NextRowAddrH NumL NumH tokenized 0
 // Program end: 0 0
-SourceBlock encodeBasic( FILE *txt ) { // Encode text into src.bytes
+SourceBlock encodeBasic( FILE *txt, int utf8 ) { // Encode text into src.bytes
     SourceBlock encoded = newSourceBlock( 'B' ); // Basic source code
     uint16_t next_line_addr = BASIC_START;
     uint16_t line_number = 0;
@@ -275,7 +287,7 @@ SourceBlock encodeBasic( FILE *txt ) { // Encode text into src.bytes
     unsigned char encoded_line[ MAX_LINE_LENGTH ];
     int line_length = 0;
     while( line_length  = get_line_from( txt, line, &line_number ) ) {
-        encode_line( line, line_length, encoded_line );
+        encode_line( line, line_length, encoded_line, utf8 );
         int encoded_line_length = strlen( encoded_line );
         next_line_addr += encoded_line_length + 5;
         encoded.bytes[ encoded.byte_counter++ ] = next_line_addr % 256;
@@ -422,7 +434,7 @@ SourceBlock create_source_mirror_block_from_file( unsigned char type, const char
     return src;
 }
 
-SourceBlock create_source_block_from_BASIC_file( const char* filename ) {
+SourceBlock create_source_block_from_BASIC_text_file( const char* filename, int utf8 ) {
     SourceBlock src = newSourceBlock( 'B' ); // Basic source code
     FILE *f = fopen( filename, "rb" ); // 0 if not source
     if ( !f ) {
@@ -430,20 +442,21 @@ SourceBlock create_source_block_from_BASIC_file( const char* filename ) {
         exit(4);
     }
     // for( src.bytes[ src.byte_counter ] = fgetc( f ); !feof( f ); src.bytes[ src.byte_counter ] = fgetc( f ) ) src.byte_counter++;
-    src = encodeBasic( f );
+    src = encodeBasic( f, utf8 );
     fclose( f );
     return src;
 }
 
-SourceBlock create_source_block_from_file( const char* filename ) {
-    if ( ext_is( filename, "bas" ) || ext_is( filename, "txt" ) ) return create_source_block_from_BASIC_file( filename );
-    if ( ext_is( filename, "scr" ) ) return create_source_mirror_block_from_file( 'S', filename, 0 );
-    if ( ext_is( filename, "rcs" ) ) return create_source_mirror_block_from_file( 'S', filename, 255 );
+SourceBlock create_source_block_from_file( const char* filename, int need_inversion ) {
+    if ( ext_is( filename, "utf8.txt" ) ) return create_source_block_from_BASIC_text_file( filename, 1 );
+    if ( ext_is( filename, "txt" ) ) return create_source_block_from_BASIC_text_file( filename, 0 );
+    if ( ext_is( filename, "bas" ) ) return create_source_mirror_block_from_file( 'B', filename, 0 );
+
+    if ( ext_is( filename, "scr" ) ) return create_source_mirror_block_from_file( 'S', filename, need_inversion ? 255 : 0 );
+
     if ( ext_is( filename, "pnm" ) ) return create_source_mirror_block_from_file( 'N', filename, 0 );
-    else {
-        printf( "Invalid file type!\n" );
-        exit( 3 );
-    }
+    printf( "Invalid file type (extension)!\n" );
+    exit( 3 );
 }
 
 SourceBlock create_name_block() {
@@ -457,19 +470,22 @@ SourceBlock create_name_block() {
 void print_usage() {
     printf( "ptpcreate v%d.%d%c (build: %s)\n", VM, VS, VB, __DATE__ );
     printf( "Create a new Primo .ptp file from input source blocks.\n");
-    printf( "The -i option define a block source file. For many block use many -i options in necessery order.\n");
+    printf( "The -b option define a block source file. For many block use many -b options in necessery order.\n");
     printf( "The source block file extension define the source block type, for ptp creating.\n");
     printf( "The useable extensions are the next:\n");
     printf( "- .pnm         : programname for load (0x83).\n");
-    printf( "- .bas or .txt : define BASIC program code (0xF1).\n");
+    printf( "- .bas         : define binary BASIC program code (0xF1).\n");
+    printf( "- .txt         : define BASIC source program list int text format, primo encoded (0xF1).\n");
+    printf( "- .utf8.txt    : define BASIC source program list int text format, utf8 encoded (0xF1).\n");
     printf( "- .scr         : define screen data (0xF5).\n");
-    printf( "- .rcs         : define inverz screen data (0xF5).\n");
     printf( "- .sys or .bin : Binary machine language program code (0xF9). It is necessary, the filename contains the absolute load address int the next format: -ORGxxxxH-.\n");
     printf( "- .run         : Run block for machine code (0xB9). 2 bytes only.\n");
     printf( "For absolute load address, and au- .sys or .bin : Binary machine language program code.\n");
     printf( "Copyright 2023 by László Princz\n");
     printf( "Usage:\n");
-    printf( "ptpblocks -i <source_file> -o <created_ptp_filename>\n");
+    printf( "ptpblocks -[b|i] <source_file> -o <created_ptp_filename>\n");
+    printf( "-b source_block : A source block define for ptp.\n");
+    printf( "-i screen_block : Use for inverz screen block.\n");
     printf( "-n name_on_tape : The tape name. Default name created from ptp filename.\n");
     printf( "-a address      : If you want, to sart the program after load automatically on the define address.\n");
     printf( "-v              : Verbose output.\n");
@@ -484,7 +500,7 @@ int main(int argc, char *argv[]) {
     int need_default_name = 1;
     int sourceBlockCounter = 0;
     srcs[ sourceBlockCounter++ ] = create_name_block();
-    while ( ( opt = getopt (argc, argv, "v?h:i:o:") ) != -1 ) {
+    while ( ( opt = getopt (argc, argv, "v?h:b:i:o:") ) != -1 ) {
         switch ( opt ) {
             case -1:
             case ':':
@@ -503,8 +519,9 @@ int main(int argc, char *argv[]) {
                 srcs[ 0 ].bytes[ srcs[ 0 ].byte_counter ] = 0;
                 need_default_name = 0;
                 break;
-            case 'i': // open ptp file
-                srcs[ sourceBlockCounter++ ] = create_source_block_from_file( optarg );
+            case 'i': // open screen block and invert it
+            case 'b': // open binari source block
+                srcs[ sourceBlockCounter++ ] = create_source_block_from_file( optarg, opt == 'i' );
                 if ( srcs[ sourceBlockCounter-1 ].type == 'N' ) { // Defined name block
                     sourceBlockCounter--;
                     srcs[ 0 ] = srcs[ sourceBlockCounter ];
@@ -512,7 +529,7 @@ int main(int argc, char *argv[]) {
                     need_default_name = 0;
                 }
                 break;
-            case 'o': // open txt file
+            case 'o': // Create ptp file
                 ptp = fopen( optarg, "wb" );
                 if ( !ptp ) {
                     fprintf( stderr, "Error creating %s.\n", optarg );

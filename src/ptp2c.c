@@ -184,7 +184,7 @@ void ptp_conv( FILE *ptp, FILE *cCode ) {
 
 void print_usage() {
     printf( "ptp2c v%d.%d%c (build: %s)\n", VM, VS, VB, __DATE__ );
-    printf( "Convert .ptp file contents to .c source file.\n");
+    printf( "Convert System .ptp file contents to .c source file.\n");
     printf( "Copyright 2023 by László Princz\n");
     printf( "Usage:\n");
     printf( "ptp2c -i <ptp_filename> [ -o <c_filename> ]\n");

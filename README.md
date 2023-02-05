@@ -1,7 +1,25 @@
 # primoutils
-Primo segédprogramok 2022 linux és windows rendszerekre:
-pp2ptp, ptp2txt, ptpinfo, ptpdump, ptp2wav.
+Primo segédprogramok 2023 linux és windows rendszerekre:
+    pp2ptp, ptp2c, ptp2turbo, ptp2txt, ptp2wav, ptpblocks, ptpcreate, ptpdump, ptpinfo.
 A Windows programok a win32 mappában, a linux parancsok a bin mappában találhatók.
+
+## ptp2turbo
+Gyorsan betölthető wav fájlt generált a megadott ptp fájlból. A gyors betöltés feltétele a jóminőségű lejátszás, azaz számítógépről/telefonról lejátszott wav esetén működőképes.
+Hagyományos szalaggal nem teszteltem.
+A program egy Turbo loader-t illeszt a ptp fájl elé, és a loader betöltődése után már az tölti be a primo programot.
+A Manic miner 9 perces betöltődése helyett 1 perc alatt betölthető vele. :)
+
+
+## ptpdump
+Egy ptp fájlban található logikai blokkokat listázza vagy menti ki. A szalagon kisebb csomagokba tördelve tárolódnak az adatblokkok. Ez a program az egymás után következő összetartozó
+adatblokkok adatait listázza ki.
+A -d paraméter segítségével ezek a blokkok egy-egy külön fájlba is kimenthetők, így a ptp fájlban tárolt gép vagy BASIC program is lementhető egy-egy fájlba. A könnyebb felhasználhatósághoz
+a képernyő blokkokt a -g paraméter megadása esetén GIF formátumban menti ki. A BASIC programot a -t hatására TXT fájlba menti le, azaz a BASIC programlistát menti le a fájlba. A -u paraméter
+pedig utf8 kódolásúvá teszi ezt a fájl.
+
+## ptpcreate
+Ptp fájl generálását teszi lehetővé a ptpbump segítségével kiexoirtált blokkokból. BASIC esetén képes TXT formátumban lévő BASIC forráskódot is beilleszteni a PTP fájlba.
+Az így generált ptp fájlból később a ptp2turbo segítségével is generálható wav állomány.
 
 ## ptp2wav
 Egy .ptp típusú fájlt konvertál .wav formátumra. A konverzió alapjául Varga Viktor <a href='https://github.com/vargaviktor/primotools/'>primotools</a> projektben található PTP2WAV szolgált, 
@@ -63,5 +81,5 @@ Pociók:
 -a            : Show autostart address only.
 -v            : Verbose output.
 
-##ptpdump
-Egy gépikódú programot tartalmazó .ptp fájlt konvertál bináris fájllá, ami a betöltés utáni memóratartalmat tartalmazza.
+## ptp2c
+Gépi kódú programot ttartalmazó ptp fájl tartalmát c forrskóddá konvertálja

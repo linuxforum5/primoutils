@@ -225,6 +225,7 @@ void save_turbo_header( FILE *wav ) {
 }
 
 void save_turbo_block_header( PTP_BLOCK_DATA block, FILE *wav ) {
+    save_turbo_byte( ( block.type == 0xF5 ) ? 1 : 0, wav ); // Screen esetén 1 különben 1
     save_turbo_addr( block.load_address, wav );              // load address
     save_turbo_addr( block.byte_counter, wav );              // byte counter
 printf( "Create turbo block (size=0x%04X)\n", block.byte_counter );

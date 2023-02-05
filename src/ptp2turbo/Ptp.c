@@ -58,7 +58,8 @@ u_int16_t read_tape_name_block( FILE *ptp, unsigned char blockIndex ) { // block
     return namesize + 4;
 }
 
-void create_new_big_block( uint16_t load_address ) {
+void create_new_big_block( uint16_t load_address, unsigned char blockType ) {
+    blocks[ block_counter ].type = blockType;
     blocks[ block_counter ].load_address = load_address;
     blocks[ block_counter ].byte_counter = 0;
     blocks[ block_counter ].bytes = malloc( 65535 );
@@ -74,7 +75,7 @@ u_int16_t read_tape_data_block( FILE *ptp, unsigned char tapeBlockType, unsigned
     unsigned char loadAddressH = fgetc( ptp );
     uint16_t loadAddress = loadAddressL + loadAddressH * 256 + base_load_addr;
     if ( last_data_block_type != tapeBlockType ) { // New block
-        create_new_big_block( loadAddress );
+        create_new_big_block( loadAddress, tapeBlockType );
         last_data_block_type = tapeBlockType;
     }
     PTP_BLOCK_DATA *bl = &blocks[ block_counter-1 ];
@@ -82,7 +83,7 @@ u_int16_t read_tape_data_block( FILE *ptp, unsigned char tapeBlockType, unsigned
     if ( verbose ) printf( "\t%02X. tape block type: Data (0x%02X). Load: 0x%04X, Count1: 0x%02X\n", blockIndex, tapeBlockType, loadAddress, byteCounter );
     u_int16_t counter = byteCounter ? byteCounter : 256;
     if ( bl->load_address + bl->byte_counter != loadAddress ) { // Space in tape blocks
-        create_new_big_block( loadAddress );
+        create_new_big_block( loadAddress, tapeBlockType );
         bl = &blocks[ block_counter-1 ];
 //        printf( "ERROR: Space in block chain! Big block first free addr: 0x%04X, This block first addr: 0x%04X\n", bl->load_address + counter, loadAddress );
 //            exit(1);
@@ -106,7 +107,7 @@ u_int16_t read_tape_block( FILE *ptp, uint16_t basic_run_address ) {
             case 0xF1 : return read_tape_data_block( ptp, tapeBlockType, blockIndex, 0x43EA ); break; // Basic program 4B0B : 43EA
             case 0xF5 : // Képernyő
 //        case 0xF7 : // Basic adat
-            case 0xF9 : return read_tape_data_block( ptp, tapeBlockType, blockIndex, 0xE800 ); break; // Gépi program
+            case 0xF9 : return read_tape_data_block( ptp, tapeBlockType, blockIndex, 0 ); break; // Gépi program
             case 0xB1 : run_address = basic_run_address; // BASIC program vége
 //        case 0xB5 : // Képernyő vége
 //        case 0xB7 : copy_tape_close_block( ptp, wav, blockIndex, 0 ); break; // BASIC adat vége

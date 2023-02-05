@@ -21,6 +21,7 @@ typedef uint32_t u_int32_t;
 #endif
 
 typedef struct {
+    unsigned char type;
     uint16_t load_address;
     uint16_t byte_counter;
     unsigned char* bytes;
