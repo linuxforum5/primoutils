@@ -12,3 +12,4 @@ typedef struct {
 } BASIC_LINE;
 
 BASIC_LINE decode_basic_line( const unsigned char *line, int size, int utf8 );
+int check_load_addresses( unsigned char *bin_basic, int length, uint16_t load_address );

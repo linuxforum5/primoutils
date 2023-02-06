@@ -222,15 +222,26 @@ void save_turbo_addr( unsigned int addr, FILE *wav ) {
 void save_turbo_header( FILE *wav ) {
 //    wav_write_sample( wav, top, tick );    // ~ 48us
     wav_write_sample( wav, bottom, tick ); // ~ 48us synchron
+    uint16_t sum = 0;
+    for( unsigned char i=0; i<14; i++ ) {
+        unsigned char c = i*3;
+        sum += c * 0x101;
+        save_turbo_byte( c, wav );
+    }
+    save_turbo_byte( sum % 0x100, wav );
+    save_turbo_byte( sum / 0x100, wav );
 }
 
 void save_turbo_block_header( PTP_BLOCK_DATA block, FILE *wav ) {
+    // Bevezető byte a képernyőképhez
     save_turbo_byte( ( block.type == 0xF5 ) ? 1 : 0, wav ); // Screen esetén 1 különben 1
+//    wav_write_sample( wav, top, 4*tick );
+    // 
     save_turbo_addr( block.load_address, wav );              // load address
     save_turbo_addr( block.byte_counter, wav );              // byte counter
 printf( "Create turbo block (size=0x%04X)\n", block.byte_counter );
     // printf( "Create Big Turbo Block with size 0x%04X\n", block.byte_counter );
-    wav_write_sample( wav, top, block.byte_counter/1200*tick ); // For line writeing 80f0(33008) esetén 1A(26)*tick
+    wav_write_sample( wav, top, block.byte_counter/1200*tick ); // For line writeing 80f0(33008) esetén 1A(26)*tick // 1200 volt eddig jó
 }
 
 void save_payload_block_selector( int last, FILE *wav  ) {

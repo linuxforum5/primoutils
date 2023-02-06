@@ -123,3 +123,27 @@ BASIC_LINE decode_basic_line( const unsigned char *line, int max_size, int utf8 
     bl.charset = 'P';
     return bl;
 }
+
+int check_load_addresses( unsigned char *bin_basic, int length, uint16_t load_address ) {
+    int chng_counter = 0;
+    int pos = 0;
+    while( pos < length-4 ) {
+        uint16_t next_addr = bin_basic[ pos++ ] + 256*bin_basic[ pos++ ];
+        uint16_t line_number = bin_basic[ pos++ ] + 256*bin_basic[ pos++ ];
+        int line_length = 5; // Lezáró 0 és bevezető 4 bájt
+        while( (pos<length) && bin_basic[ pos ] ) {
+            line_length++;
+            pos++;
+        }
+        pos++;
+        uint16_t real_next_addr = load_address + line_length;
+// printf( "Origi next line address: 0x%04X. Real next line address: 0x%04X\n", next_addr, real_next_addr );
+        if ( next_addr != real_next_addr ) {
+            bin_basic[ pos - line_length ] = real_next_addr%256;
+            bin_basic[ pos - line_length + 1 ] = real_next_addr/256;
+            chng_counter++;
+        }
+        load_address += line_length;
+    }
+    return chng_counter;
+}

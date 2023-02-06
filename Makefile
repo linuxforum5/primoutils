@@ -33,8 +33,8 @@ ptp2c: $(SRC)/ptp2c.c
 	$(WCC) -Isrc/lib -o $(WBIN)/ptp2c $(SRC)/ptp2c.c $(SRC)/lib/fs.c
 
 ptp2turbo: $(SRC)/ptp2turbo/ptp2turbo.c
-	$(CC) -o $(BIN)/ptp2turbo $(SRC)/ptp2turbo/ptp2turbo.c $(SRC)/ptp2turbo/Ptp.c
-	$(WCC) -o $(WBIN)/ptp2turbo $(SRC)/ptp2turbo/ptp2turbo.c $(SRC)/ptp2turbo/Ptp.c
+	$(CC) -o $(BIN)/ptp2turbo $(SRC)/ptp2turbo/ptp2turbo.c $(SRC)/ptp2turbo/Ptp.c $(SRC)/lib/basic.c
+	$(WCC) -o $(WBIN)/ptp2turbo $(SRC)/ptp2turbo/ptp2turbo.c $(SRC)/ptp2turbo/Ptp.c $(SRC)/lib/basic.c
 
 ptpdump: $(SRC)/ptpdump.c
 	$(CC) -Isrc/lib -o $(BIN)/ptpdump $(SRC)/ptpdump.c $(SRC)/lib/fs.c
