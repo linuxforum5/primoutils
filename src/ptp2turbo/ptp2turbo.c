@@ -187,6 +187,40 @@ void save_loader( FILE *wav ) {
         writed += block_size;
     }
 }
+
+void check_payload_block_addresses( uint16_t loader_first_address, uint16_t loader_last_address ) {
+    for( unsigned int block_index0 = 0; block_index0<payload.block_counter; block_index0++ ) {
+        uint16_t first = payload.blocks[ block_index0 ].load_address;
+        uint16_t last = first + payload.blocks[ block_index0 ].byte_counter - 1;
+        if ( first >= loader_first_address && first <= loader_last_address ) {
+            fprintf( stderr, "Turbo loader error: payload content in loader memory (1)\n" ); exit(1);
+        } else if ( last >= loader_first_address && last <= loader_last_address ) {
+            fprintf( stderr, "Turbo loader error: payload content in loader memory (2)\n" ); exit(1);
+        } else if ( first <= loader_first_address && last >= loader_last_address ) {
+            fprintf( stderr, "Turbo loader error: payload content in loader memory (3)\n" ); exit(1);
+        }
+    }
+}
+
+void shift_loader() {
+    uint16_t loader_full_size = 0x015D; // 349 byte
+    uint16_t max_free_address = 0x62FF; // A32 first screen address 0x6400
+    uint16_t replace_addr = 0x63; // A GET_BYTE0_USE_ADDR_PLUS_2 - 2 Konkrét értéke turbo_loader.load_address + 0x65 - 2 = 0xE465 - 2 = 0xE463;
+    uint16_t dest_address = max_free_address - loader_full_size + 1; // = 0x62A3. Original load address 0xE400. 
+    uint16_t shift = turbo_loader.load_address - dest_address;
+    check_payload_block_addresses( dest_address, max_free_address );
+    printf( "Move loader from 0x%04X to 0x%04X with 0x%04X\n", turbo_loader.load_address, dest_address, shift );
+    turbo_loader.load_address -= shift;
+    turbo_loader.run_address  -= shift;
+    turbo_loader.bytes[ 0x63 ] = dest_address % 256;
+    turbo_loader.bytes[ 0x64 ] = dest_address / 256;
+    uint16_t loading_msg = dest_address + 0x136;
+    turbo_loader.bytes[ 0x49 ] = loading_msg % 256; // LOADING_MSG
+    turbo_loader.bytes[ 0x4A ] = loading_msg / 256;
+    uint16_t error_msg = dest_address + 0x31;
+    turbo_loader.bytes[ 0x105 ] = error_msg % 256; // ERROR_MSG
+    turbo_loader.bytes[ 0x106 ] = error_msg / 256;
+}
 /****************************************************************************************************************************************
  * Turbo functions
  ****************************************************************************************************************************************/
@@ -246,10 +280,11 @@ printf( "Create turbo block (size=0x%04X)\n", block.byte_counter );
 
 void save_payload_block_selector( int last, FILE *wav  ) {
     if ( last ) { // Last block
-        if ( autoBasicRun ) {
+        if ( autoBasicRun && payload.basic_block_counter ) {
             save_turbo_byte( 3, wav ); // 0 == RUN next ADDRESS or BASIC
         } else if ( payload.run_address ) { // Ha nem nulla az indulási cím
             save_turbo_byte( 0, wav ); // 0 == RUN next ADDRESS or BASIC
+            // printf( "Save run address: 0x%04X\n", payload.run_address );
             save_turbo_addr( payload.run_address, wav );    // run address
         } else {
             save_turbo_byte( 2, wav ); // 2 == RETURN TO BASIC
@@ -324,6 +359,7 @@ int main(int argc, char *argv[]) {
         // payload = load_payload_from_ptp( ptp, verbose, 0x1A33 ); // GOTO BASIC COMMAND MODE. turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
         // payload = load_payload_from_ptp( ptp, verbose, turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
         wav_init( wav );
+        shift_loader(); // Shift if need!
         save_loader( wav );
         wav_write_silence( wav, 20000 );
         save_payload( wav );

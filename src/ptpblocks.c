@@ -212,7 +212,7 @@ int curfile_printed = 0; // Ha 1, akkor már kiírtuk
 
 void show_block_info( int file_index, TapeBlockType bigTapeBlock ) {
     if ( !is_header ) {
-        printf( "File\tTape\tType\tName\tCnt\tClose\t>LoadH\t>SizeH\t>RunH\n" );
+        printf( "File\tTape\tType\tName\tCnt\tClose\t>LoadH\t>SizeH\t>RunH\t>TopH\t>A32Free\t>A48Free\t>A64Free\n" );
         is_header = 1;
     }
     char type_name[20] = "";
@@ -225,7 +225,11 @@ void show_block_info( int file_index, TapeBlockType bigTapeBlock ) {
         case 0xB9 : strcpy( type_name, "SysStart" ); break; // Lehet, hogy a system indító blokk a legvégén van, külön a system blokktól, mivel csak a teljes betöltés után akarja indítani
         default: strcpy( type_name, "???" ); break;
     }
-    printf( "%s\t%d.\t0x%02X\t%s\t%d\t%d\t%4X\t%X\t%X\n", curfile_printed ? "" : curfile, file_index, bigTapeBlock.type, type_name, bigTapeBlock.tape_block_counter, bigTapeBlock.close_counter, bigTapeBlock.load_address, bigTapeBlock.byte_counter, bigTapeBlock.run_address );
+    uint16_t run_address = ( bigTapeBlock.type == 0xF1 ) ? BASIC_START : bigTapeBlock.run_address;
+    uint16_t load_address = ( bigTapeBlock.type == 0xF1 ) ? bigTapeBlock.load_address + BASIC_START : bigTapeBlock.load_address;
+    uint16_t top_address = 0;
+    if ( run_address && load_address ) top_address = load_address + bigTapeBlock.byte_counter;
+    printf( "%s\t%d.\t0x%02X\t%s\t%d\t%d\t%4X\t%X\t%X\t%X\t%X\t%X\t%X\n", curfile_printed ? "" : curfile, file_index, bigTapeBlock.type, type_name, bigTapeBlock.tape_block_counter, bigTapeBlock.close_counter, load_address, bigTapeBlock.byte_counter, run_address, top_address, top_address?0x6800-top_address:0, top_address?0xA800-top_address:0, top_address?0xE800-top_address:0 );
     curfile_printed = 1;
     if ( dump ) {
         char dumpname[100];

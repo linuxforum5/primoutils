@@ -18,11 +18,12 @@
 
 static int verbose = 0;
 
-#define BASIC_SART_ADDRESS 0x43EA
+#define BASIC_START_ADDRESS 0x43EA
 #define MAX_BLOCK_COUNTER 100
 static char tape_name[17] = ""; // Tape name in tape_name_block
 static u_int16_t run_address = 0; // run address after load
 int block_counter = 0;
+int basic_block_counter = 0;
 unsigned char last_data_block_type = 0;
 static PTP_BLOCK_DATA blocks[ MAX_BLOCK_COUNTER ];
 /*
@@ -62,13 +63,18 @@ u_int16_t read_tape_name_block( FILE *ptp, unsigned char blockIndex ) { // block
 
 void check_BASIC_load_addresses_in_last_block() {
     PTP_BLOCK_DATA *bl = &blocks[ block_counter-1 ];
-    int cnt = check_load_addresses( bl->bytes, bl->byte_counter, BASIC_SART_ADDRESS );
+    int cnt = check_load_addresses( bl->bytes, bl->byte_counter, BASIC_START_ADDRESS );
     if ( cnt ) {
         printf( "*** Basic next line memory address correction: %d\n", cnt );
     }
 }
 
 void create_new_big_block( uint16_t load_address, unsigned char blockType ) {
+    if ( load_address < BASIC_START_ADDRESS ) { // 0x41E8-43E8
+//        fprintf( stderr, "Invalid block loading address for turbo loader! ( 0x%04X < 0x%04X )\n", load_address, BASIC_START_ADDRESS );
+//        exit(1);
+    }
+    if ( blockType == 0xF1 ) basic_block_counter++;
     blocks[ block_counter ].type = blockType;
     blocks[ block_counter ].load_address = load_address;
     blocks[ block_counter ].byte_counter = 0;
@@ -115,15 +121,21 @@ u_int16_t read_tape_block( FILE *ptp, uint16_t basic_run_address ) {
         switch( tapeBlockType ) {
             case 0x83 :
             case 0x87 : return read_tape_name_block( ptp, blockIndex ); break;
-            case 0xF1 : return read_tape_data_block( ptp, tapeBlockType, blockIndex, BASIC_SART_ADDRESS ); break; // Basic program 4B0B : 43EA
+            case 0xF1 : return read_tape_data_block( ptp, tapeBlockType, blockIndex, BASIC_START_ADDRESS ); break; // Basic program 4B0B : 43EA
             case 0xF5 : // Képernyő
 //        case 0xF7 : // Basic adat
             case 0xF9 : return read_tape_data_block( ptp, tapeBlockType, blockIndex, 0 ); break; // Gépi program
-            case 0xB1 : run_address = basic_run_address; // BASIC program vége
+            case 0xB1 :
+                run_address = basic_run_address; // BASIC program vége
+                if ( last_data_block_type == 0xF1 ) {
+                    check_BASIC_load_addresses_in_last_block();
+                } else {
+                    fprintf( stderr, "Invalid BASIC close block! Not after BASIC code\n" );
+                    exit(1);
+                }
 //        case 0xB5 : // Képernyő vége
 //        case 0xB7 : copy_tape_close_block( ptp, wav, blockIndex, 0 ); break; // BASIC adat vége
             case 0xB9 : 
-                if ( last_data_block_type == 0xF1 ) check_BASIC_load_addresses_in_last_block();
                 return read_tape_close_block( ptp, blockIndex, tapeBlockType == 0xB9 ); break; // Gépi kódú vége, autostart
             default:
                 fprintf( stderr, "Invalid tape block type: 0x%02X\n", tapeBlockType );
@@ -163,6 +175,7 @@ PTP_DATA create_ptp_data() {
     strcpy( payload.name, tape_name );
     payload.run_address = run_address;
     payload.block_counter = block_counter;
+    payload.basic_block_counter = basic_block_counter;
     payload.blocks = blocks;
     return payload;
 }

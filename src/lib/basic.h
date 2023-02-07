@@ -2,6 +2,8 @@
 
 #define MAX_LINE_LENGTH 2048
 
+#define BASIC_START 0x43EA
+
 typedef struct {
     int bin_line_full_length; // strlen(bin_line)+2*2+1 Full readed binari line length with address, line number and encloser zero
     uint16_t next_address;
