@@ -25,6 +25,7 @@ static u_int16_t run_address = 0; // run address after load
 int block_counter = 0;
 int basic_block_counter = 0;
 unsigned char last_data_block_type = 0;
+
 static PTP_BLOCK_DATA blocks[ MAX_BLOCK_COUNTER ];
 /*
 static unsigned char bytes[65535];
@@ -177,6 +178,16 @@ PTP_DATA create_ptp_data() {
     payload.block_counter = block_counter;
     payload.basic_block_counter = basic_block_counter;
     payload.blocks = blocks;
+    int max_address = 0;
+    int min_address = 0;
+    for( int i=0; i<block_counter; i++ ) {
+        if ( blocks[i].load_address ) {
+            if ( blocks[i].load_address<min_address || !min_address ) min_address=blocks[i].load_address;
+            if ( blocks[i].load_address+blocks[i].byte_counter-1>max_address ) max_address=blocks[i].load_address+blocks[i].byte_counter-1;
+        }
+    }
+    payload.min_address = min_address;
+    payload.max_address = max_address;
     return payload;
 }
 

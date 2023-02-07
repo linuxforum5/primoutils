@@ -29,8 +29,10 @@ typedef struct {
 
 typedef struct {
     char name[ 17 ];
+    uint16_t min_address;
     uint16_t run_address;
     uint16_t block_counter;
+    uint16_t max_address;
     unsigned char basic_block_counter;
     PTP_BLOCK_DATA *blocks;
 } PTP_DATA;
