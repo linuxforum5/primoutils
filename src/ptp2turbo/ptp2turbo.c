@@ -203,8 +203,7 @@ void check_payload_block_addresses( uint16_t loader_first_address, uint16_t load
 }
 
 void shift_loader( uint16_t first_free_top_address ) {
-    uint16_t loader_full_size = 0x015C; // 349 byte
-    uint16_t last_loader_address = first_free_top_address + loader_full_size;
+    uint16_t last_loader_address = first_free_top_address + turbo_loader.byte_counter;
     if ( last_loader_address <= 0x67A0 ) { // A32 fut
         printf( "Run on A32\n" );
     } else if ( last_loader_address <= 0xA7A0 ) { // A48 fut
@@ -212,23 +211,28 @@ void shift_loader( uint16_t first_free_top_address ) {
     } else if ( last_loader_address <= 0xE7A0 ) { // A64 fut
         printf( "Run on A64\n" );
     } else {
-        fprintf( stderr, "Turbo loading not possible. :(\n" );
+        fprintf( stderr, "Turbo loading not possible. (Not enough room on top of payload.):(\n" );
         exit(1);
     }
-    // uint16_t dest_address = first_free_top_address;
-    uint16_t shift = turbo_loader.load_address - first_free_top_address;
-    check_payload_block_addresses( first_free_top_address, last_loader_address );
-    printf( "Move loader from 0x%04X to 0x%04X with 0x%04X\n", turbo_loader.load_address, first_free_top_address, shift );
-    turbo_loader.load_address -= shift;
-    turbo_loader.run_address  -= shift;
-    turbo_loader.bytes[ 0x63 ] = first_free_top_address % 256;
-    turbo_loader.bytes[ 0x64 ] = first_free_top_address / 256;
-    uint16_t loading_msg = first_free_top_address + 0x136;
-    turbo_loader.bytes[ 0x49 ] = loading_msg % 256; // LOADING_MSG
-    turbo_loader.bytes[ 0x4A ] = loading_msg / 256;
-    uint16_t error_msg = first_free_top_address + 0x31;
-    turbo_loader.bytes[ 0x105 ] = error_msg % 256; // ERROR_MSG
-    turbo_loader.bytes[ 0x106 ] = error_msg / 256;
+    if ( first_free_top_address > turbo_loader.load_address ) { // Csak felfelé lehet másolni
+        if ( first_free_top_address - turbo_loader.load_address < turbo_loader.byte_counter ) first_free_top_address = turbo_loader.load_address + turbo_loader.byte_counter;
+        // uint16_t dest_address = first_free_top_address;
+        uint16_t shift = turbo_loader.load_address - first_free_top_address;
+        check_payload_block_addresses( first_free_top_address, last_loader_address );
+        printf( "Move loader from 0x%04X to 0x%04X with 0x%04X\n", turbo_loader.load_address, first_free_top_address, shift );
+        turbo_loader.load_address -= shift;
+        turbo_loader.run_address  -= shift;
+        turbo_loader.bytes[ 0x63 ] = first_free_top_address % 256;
+        turbo_loader.bytes[ 0x64 ] = first_free_top_address / 256;
+        uint16_t loading_msg = first_free_top_address + 0x136;
+        turbo_loader.bytes[ 0x49 ] = loading_msg % 256; // LOADING_MSG
+        turbo_loader.bytes[ 0x4A ] = loading_msg / 256;
+        uint16_t error_msg = first_free_top_address + 0x31;
+        turbo_loader.bytes[ 0x105 ] = error_msg % 256; // ERROR_MSG
+        turbo_loader.bytes[ 0x106 ] = error_msg / 256;
+    } else { // No move
+        printf( "Loader stay on 0x%04X address\n", turbo_loader.load_address );
+    }
 }
 /****************************************************************************************************************************************
  * Turbo functions

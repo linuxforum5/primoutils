@@ -25,7 +25,7 @@ BASIC_CMD_LINE_ADDR:     EQU     $197E
 GET_BYTE:                EQU     $411C   ; $411C-$4151 = $35. 53 Bájt használható 49 bájtra van szükség. A legfelső elfoglalt bájt címe: $414D
 DSPMSG:                  EQU     $3D03   ; ROM szövegkiíró rutin
 
-                ORG $E400
+                ORG $4400
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; A küldött bájtok ideje 48kHz-en (76.8kHz) sample = 13,020833333us ~ 13us
 ;;; - 1 : [ HHHHLLHHHHLL ] = 12 samples = 156us
