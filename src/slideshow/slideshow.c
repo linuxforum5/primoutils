@@ -40,7 +40,6 @@ const unsigned char bottom = POS_PEAK;
 const unsigned char top  = NEG_PEAK;
 const unsigned char middle  = SILENCE;
 int verbose = 0;
-int autoBasicRun = 0;
 
 /* WAV file header structure */
 /* should be 1-byte aligned */
@@ -264,7 +263,7 @@ unsigned int save_screen_block( FILE *wav, unsigned char v, int last ) {
     return 6144;
 }
 
-void save_scr( FILE *wav, FILE *scr, int last ) {
+void save_scr( FILE *wav, FILE *scr, int last, unsigned char inverz, unsigned char raw ) {
     save_turbo_byte( 0, wav ); // 1 == Read next block
     save_turbo_byte( 0, wav ); // 1 == Read next block
 
@@ -272,7 +271,10 @@ void save_scr( FILE *wav, FILE *scr, int last ) {
     save_turbo_byte( 0x18, wav ); // 1 == Read next block
 
     for( int i = 0; i < 6144; i++ ) {
-        save_turbo_byte( fgetc( scr ), wav ); // 1 == Read next block
+        unsigned char c = fgetc( scr );
+        if ( raw ) c = reverse( c );
+        if ( inverz ) c = 255 - c;
+        save_turbo_byte( c, wav ); // 1 == Read next block
     }
 
     save_turbo_byte( last ? 0 : 1, wav ); // 1 == Read next block
@@ -280,14 +282,14 @@ void save_scr( FILE *wav, FILE *scr, int last ) {
 
 #define MAX_FILENAME_LENGTH 1000
 
-unsigned int save_payload( FILE *wav, char* filename, int length, int last ) {
+unsigned int save_payload( FILE *wav, char* filename, int length, int last, unsigned char inverz, unsigned char raw ) {
     char fn[ MAX_FILENAME_LENGTH ] = "";
     for( int i=0; i<length; i++ ) fn[i]=filename[i];
     fn[length]=0;
     printf( "*** '%s'\n", fn );
     FILE *scr;
     if ( scr = fopen( fn, "rb" ) ) {
-        save_scr( wav, scr, last );
+        save_scr( wav, scr, last, inverz, raw );
         fclose( scr );
         return 6144;
     }
@@ -315,14 +317,18 @@ void print_usage() {
     printf( "Create slideshow as turbo wav file.\n");
     printf( "Copyright 2023 by László Princz\n");
     printf( "Usage:\n");
-    printf( "slideshow -i <scr_file> -o <slideshow_wav_filename>\n");
-    printf( "-i      : The showed scr file. More than one is useable.\n");
+    printf( "slideshow -[iIrR] <scr_file> -o <slideshow_wav_filename>\n");
+    printf( "-i filename : Show the scr file as stored in tape. More than one is useable.\n");
+    printf( "-I filename : Show the inverz scr file as stored in tape. More than one is useable.\n");
+    printf( "-r filename : Show the imagemagick generated raw file (MONO:filenam). More than one is useable.\n");
+    printf( "-r filename : Show the inverz imagemagick generated raw file (MONO:filenam). More than one is useable.\n");
     printf( "-v      : Verbose mode.\n");
     exit( 1 );
 }
 
 #define MAX_FILENAME_PUFFEL_LENGTH 65000
 #define MAX_FILENAME 1000
+#define MAX_FILES 1000
 
 int main(int argc, char *argv[]) {
     int opt = 0;
@@ -331,7 +337,9 @@ int main(int argc, char *argv[]) {
     char filenames[ MAX_FILENAME_PUFFEL_LENGTH ] = "";
     int filename_lengths[ MAX_FILENAME ];
     int filename_counter = 0;
-    while ( ( opt = getopt (argc, argv, "va?h:i:o:") ) != -1 ) {
+    unsigned char inverz[ MAX_FILES ];
+    unsigned char raw[ MAX_FILES ];
+    while ( ( opt = getopt (argc, argv, "va?h:i:I:r:R:o:") ) != -1 ) {
         switch ( opt ) {
             case -1:
             case ':': break;
@@ -339,6 +347,11 @@ int main(int argc, char *argv[]) {
             case 'h': print_usage(); break;
             case 'v': verbose = 1; break;
             case 'i': 
+            case 'I': 
+            case 'r': 
+            case 'R':
+                inverz[ filename_counter ] = ( opt == 'I' ) || ( opt == 'R' ); 
+                raw[ filename_counter ] = ( opt == 'r' ) || ( opt == 'R' ); 
                 scr = fopen( optarg, "rb" );
                 if ( !scr ) {
                     fprintf( stderr, "Error opening %s.\n", optarg);
@@ -366,10 +379,10 @@ int main(int argc, char *argv[]) {
         payload_start_position = ftell( wav );
 
         unsigned long payload_size = 0;
-        payload_size += save_screen_block( wav, 255, 0 );
+        // payload_size += save_screen_block( wav, 255, 0 );
         int start_pos = 0;
         for( int i=0; i<filename_counter; i++ ) {
-            payload_size += save_payload( wav, filenames + start_pos, filename_lengths[ i ], i == filename_counter-1 );
+            payload_size += save_payload( wav, filenames + start_pos, filename_lengths[ i ], i == filename_counter-1, inverz[ i ], raw[ i ] );
             start_pos += filename_lengths[ i ];
         }
         wav_close( wav, payload_size );
