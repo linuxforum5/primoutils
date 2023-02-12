@@ -6,7 +6,7 @@ WBIN=win32
 BIN=bin
 INSTALL_DIR=~/.local/bin
 
-all: pp2ptp ptpinfo ptpblocks ptp2txt ptpdump ptp2wav ptp2c ptp2turbo ptpcreate
+all: pp2ptp ptpinfo ptpblocks ptp2txt ptpdump ptp2wav ptp2c ptp2turbo ptpcreate slideshow
 
 pp2ptp: $(SRC)/pp2ptp.c
 	$(CC) -o $(BIN)/pp2ptp $(SRC)/pp2ptp.c
@@ -35,6 +35,10 @@ ptp2c: $(SRC)/ptp2c.c
 ptp2turbo: $(SRC)/ptp2turbo/ptp2turbo.c
 	$(CC) -o $(BIN)/ptp2turbo $(SRC)/ptp2turbo/ptp2turbo.c $(SRC)/ptp2turbo/Ptp.c $(SRC)/lib/basic.c
 	$(WCC) -o $(WBIN)/ptp2turbo $(SRC)/ptp2turbo/ptp2turbo.c $(SRC)/ptp2turbo/Ptp.c $(SRC)/lib/basic.c
+
+slideshow: $(SRC)/slideshow/slideshow.c
+	$(CC) -o $(BIN)/slideshow $(SRC)/slideshow/slideshow.c
+	$(WCC) -o $(WBIN)/slideshow $(SRC)/slideshow/slideshow.c
 
 ptpdump: $(SRC)/ptpdump.c
 	$(CC) -Isrc/lib -o $(BIN)/ptpdump $(SRC)/ptpdump.c $(SRC)/lib/fs.c

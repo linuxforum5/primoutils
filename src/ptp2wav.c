@@ -46,6 +46,7 @@ u_int8_t bit1_peak_counter = 3; // const char bt1[ 6 ]  = { POS_PEAK, POS_PEAK, 
 u_int8_t bit0_peak_counter = 8; // const char bt0[ 16 ] = { POS_PEAK, POS_PEAK, POS_PEAK, POS_PEAK, POS_PEAK, POS_PEAK, POS_PEAK, POS_PEAK, NEG_PEAK, NEG_PEAK, NEG_PEAK, NEG_PEAK, NEG_PEAK, NEG_PEAK, NEG_PEAK, NEG_PEAK };
 
 const unsigned int defaultBaud = 8000; // max 13000
+u_int16_t full_bytes_size = 0; // A kiírt hasznos bájtok száma
 
 unsigned char verbose = 0;
 
@@ -85,6 +86,14 @@ struct wav_header { // 44 bytes
 
 void wav_init( FILE *wav ) { fwrite( &waveHeader, sizeof( waveHeader ), 1, wav ); }
 
+void showWavStat( unsigned int full_bytes_size, unsigned int wav_data_size ) {
+    printf( "Full size is %dKB\n", full_bytes_size/1024 );
+    unsigned int seconds = wav_data_size / waveHeader.nSamplesPerSec;
+    printf( "Full time is %d minutes and %d seconds\n", seconds / 60, seconds % 60 );
+    unsigned long speed = (long)full_bytes_size * (long)8 * (long)waveHeader.nSamplesPerSec / (long)wav_data_size;
+    printf( "Speed is %lu baud\n", speed );
+}
+
 void wav_close( FILE *wav ) {
     int full_size = ftell( wav );
     fseek( wav, 4, SEEK_SET );
@@ -94,6 +103,7 @@ void wav_close( FILE *wav ) {
     fseek( wav, sizeof( waveHeader ) - 4 ,SEEK_SET ); // data chunk size position: 40
     fwrite( &data_size, sizeof( data_size ), 1, wav );
     fclose( wav );
+    showWavStat( full_bytes_size, data_size );
 }
 
 void write_primo_silence( FILE *wav ) { for( int i=0; i<2000; i++ ) fputc( SILENCE, wav ); }
@@ -144,6 +154,7 @@ void copy_tape_data_block( FILE *ptp, FILE* wav, unsigned char blockIndex ) { //
     write_byte_into_wav( wav, loadAddressL );
     write_byte_into_wav( wav, loadAddressH );
     write_byte_into_wav( wav, byteCounter );
+    full_bytes_size += byteCounter ? byteCounter : 256;
     copy_bytes_into_wav( ptp, byteCounter, 1, wav ); // 0 == 256
 }
 

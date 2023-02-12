@@ -14,24 +14,23 @@
 
 #include <stdint.h>
 
-#include "Ptp.h"
+// #include "Ptp.h"
 #include "wavloader.c"
 
 #define VM 0
 #define VS 1
 #define VB 'b'
 
-PTP_DATA payload;
+// PTP_DATA payload;
 
 /****************************************************************************************************************************************
  * Wav functions
  ****************************************************************************************************************************************/
 const unsigned char  SILENCE = 0x80;
-const unsigned char POS_PEAK = 0xff; // Origi = f8
-const unsigned char NEG_PEAK = 0x00; // Origi = 08
+const unsigned char POS_PEAK = 0xf8; // Origi = f8
+const unsigned char NEG_PEAK = 0x08; // Origi = 08
 
-const unsigned int defaultBaud = 54000; // 54000 // 2*25000;
-const unsigned int tick = 2; // 1 byte ~ 48us
+const unsigned int defaultBaud = 62000; // 55555; // 55447; // 26042; // 44000; // 54000; // 54000 // 2*25000;
 const unsigned char bottom = POS_PEAK;
 // const unsigned char bottom = SILENCE;
 // const unsigned char bottom = NEG_PEAK;
@@ -39,9 +38,9 @@ const unsigned char bottom = POS_PEAK;
 // const unsigned char top  = POS_PEAK;
 // const unsigned char top  = SILENCE;
 const unsigned char top  = NEG_PEAK;
+const unsigned char middle  = SILENCE;
 int verbose = 0;
 int autoBasicRun = 0;
-unsigned long payload_start_position = 0; // A wav fájlban a payload kezdőpozíciója
 
 /* WAV file header structure */
 /* should be 1-byte aligned */
@@ -83,19 +82,21 @@ void wav_write_sample( FILE *wav, unsigned char sample, unsigned int counter ) {
 
 void wav_write_silence( FILE *wav, int pulse_counter ) { for( int i=0; i<pulse_counter; i++ ) fputc( SILENCE, wav ); }
 
-void wav_close( FILE *wav ) {
-    unsigned long full_size = ftell( wav );
+unsigned long payload_start_position = 0;
+
+void wav_close( FILE *wav, unsigned long payload_size ) {
+    int full_size = ftell( wav );
     fseek( wav, 4, SEEK_SET );
     fwrite( &full_size, sizeof( full_size ), 1, wav ); // Wave header 2. field : filesize with header. First the lowerest byte
-    unsigned long data_size = full_size - sizeof( waveHeader );
+    int data_size = full_size - sizeof( waveHeader );
     fseek( wav, sizeof( waveHeader ) - 4 ,SEEK_SET ); // data chunk size position: 40
     fwrite( &data_size, sizeof( data_size ), 1, wav );
     fclose( wav );
-    printf( "Full size is %dKB\n", payload.full_size/1024 );
+    printf( "Full size is %dKB\n", payload_size/1024 );
     printf( "Full time is %d seconds\n", data_size / defaultBaud );
-    unsigned long speed = (long)payload.full_size * (long)8 * (long)defaultBaud / (long)data_size;
+    unsigned long speed = (long)payload_size * (long)8 * (long)defaultBaud / (long)data_size;
     unsigned long payload_wav_size = full_size - payload_start_position;
-    unsigned long turbo_speed = (long)payload.full_size * (long)8 * (long)defaultBaud / payload_wav_size;
+    unsigned long turbo_speed = (long)payload_size * (long)8 * (long)defaultBaud / payload_wav_size;
     printf( "Speed is %lu baud (turbo speed - without original slow loader - is %lu baud)\n", speed, turbo_speed );
 }
 
@@ -103,8 +104,8 @@ void wav_close( FILE *wav ) {
  * Standard wav modules for ROM BASIC LOAD command
  * http://primo.homeserver.hu/html/konvertfajlok.html
  ****************************************************************************************************************************************/
-const unsigned char bit1_peak_slow_counter = 12; // 11
-const unsigned char bit0_peak_slow_counter = 36; // 32
+const unsigned char bit1_peak_slow_counter = 13; //b12; // 11
+const unsigned char bit0_peak_slow_counter = 39; // 36; // 32
 
 void write_slow_peaks( FILE *wav, unsigned char cnt ) {
     for( unsigned char i = 0; i < cnt; i++ ) fputc( POS_PEAK, wav );
@@ -173,179 +174,163 @@ void write_loader_name_block( FILE *wav, const char* name ) {
 void save_loader( FILE *wav ) {
     wav_write_silence( wav, 2000 );               // File szinkron blokk: 20msec szünet, 512*AA
     write_slow_block_into_wav( wav, 512, 0xAA );
-    write_loader_name_block( wav, "Turbo loader" );
+    write_loader_name_block( wav, "Slideshow Loader" );
     unsigned char block_index = 1;
 
-    unsigned int name_index_from = turbo_loader.byte_counter - 36;
-    unsigned int name_length = strlen( payload.name );
-    for( unsigned int i=0; i<name_length; i++ ) {
-        turbo_loader.bytes[ name_index_from + i ] = payload.name[ i ];
-    }
+//    char *payload_name = "screen loader";
+//    unsigned int name_index_from = screen_loader.byte_counter - 36;
+//    unsigned int name_length = strlen( payload_name );
+//    for( unsigned int i=0; i<name_length; i++ ) {
+//        screen_loader.bytes[ name_index_from + i ] = payload_name[ i ];
+//    }
 
-    for( uint16_t writed = 0; writed < turbo_loader.byte_counter; ) {
-        uint16_t block_size = turbo_loader.byte_counter - writed;
+    for( uint16_t writed = 0; writed < screen_loader.byte_counter; ) {
+        uint16_t block_size = screen_loader.byte_counter - writed;
         if ( block_size > 256 ) {
             block_size = 256;
-            write_loader_f9_block( wav, block_index++, turbo_loader.load_address + writed, turbo_loader.bytes + writed, block_size );
+            write_loader_f9_block( wav, block_index++, screen_loader.load_address + writed, screen_loader.bytes + writed, block_size );
         } else { // Last block
-            write_loader_f9_block( wav, block_index++, turbo_loader.load_address + writed, turbo_loader.bytes + writed, block_size );
-            write_loader_b9_block( wav, block_index++, turbo_loader.run_address );
+            write_loader_f9_block( wav, block_index++, screen_loader.load_address + writed, screen_loader.bytes + writed, block_size );
+            write_loader_b9_block( wav, block_index++, screen_loader.run_address );
         }
         writed += block_size;
-    }
-}
-
-void check_payload_block_addresses( uint16_t loader_first_address, uint16_t loader_last_address ) {
-    for( unsigned int block_index0 = 0; block_index0<payload.block_counter; block_index0++ ) {
-        uint16_t first = payload.blocks[ block_index0 ].load_address;
-        uint16_t last = first + payload.blocks[ block_index0 ].byte_counter - 1;
-        if ( first >= loader_first_address && first <= loader_last_address ) {
-            fprintf( stderr, "Turbo loader error: payload content in loader memory (1)\n" ); exit(1);
-        } else if ( last >= loader_first_address && last <= loader_last_address ) {
-            fprintf( stderr, "Turbo loader error: payload content in loader memory (2)\n" ); exit(1);
-        } else if ( first <= loader_first_address && last >= loader_last_address ) {
-            fprintf( stderr, "Turbo loader error: payload content in loader memory (3)\n" ); exit(1);
-        }
-    }
-}
-
-void shift_loader( uint16_t first_free_top_address ) {
-    uint16_t last_loader_address = first_free_top_address + turbo_loader.byte_counter;
-    if ( last_loader_address <= 0x67A0 ) { // A32 fut
-        printf( "Run on A32\n" );
-    } else if ( last_loader_address <= 0xA7A0 ) { // A48 fut
-        printf( "Run on A48\n" );
-    } else if ( last_loader_address <= 0xE7A0 ) { // A64 fut
-        printf( "Run on A64\n" );
-    } else {
-        fprintf( stderr, "Turbo loading not possible. (Not enough room on top of payload.):(\n" );
-        exit(1);
-    }
-    if ( first_free_top_address > turbo_loader.load_address ) { // Csak felfelé lehet másolni
-        if ( first_free_top_address - turbo_loader.load_address < turbo_loader.byte_counter ) first_free_top_address = turbo_loader.load_address + turbo_loader.byte_counter;
-        // uint16_t dest_address = first_free_top_address;
-        uint16_t shift = turbo_loader.load_address - first_free_top_address;
-        check_payload_block_addresses( first_free_top_address, last_loader_address );
-        printf( "Move loader from 0x%04X to 0x%04X with 0x%04X\n", turbo_loader.load_address, first_free_top_address, shift );
-        turbo_loader.load_address -= shift;
-        turbo_loader.run_address  -= shift;
-        turbo_loader.bytes[ 0x63 ] = first_free_top_address % 256;
-        turbo_loader.bytes[ 0x64 ] = first_free_top_address / 256;
-        uint16_t loading_msg = first_free_top_address + 0x136;
-        turbo_loader.bytes[ 0x49 ] = loading_msg % 256; // LOADING_MSG
-        turbo_loader.bytes[ 0x4A ] = loading_msg / 256;
-        uint16_t error_msg = first_free_top_address + 0x31;
-        turbo_loader.bytes[ 0x105 ] = error_msg % 256; // ERROR_MSG
-        turbo_loader.bytes[ 0x106 ] = error_msg / 256;
-    } else { // No move
-        printf( "Loader stay on 0x%04X address\n", turbo_loader.load_address );
     }
 }
 /****************************************************************************************************************************************
  * Turbo functions
  ****************************************************************************************************************************************/
 /*
- * 1 sample = 1/48000 = 20us
+ * 4Mhz-es érték számítása(V)=V*2.5/4
+ * 55556 : 1 sample = 1/44000 ~ 18us | 4Mhz: ~ 11.25us
+ * 54kHz : 18,518518519 ~ 11,574074074
+ * 44kHz : 1 sample = 1/44000 = 22,727272727us | 4Mhz:14,204545455 ~ 14.2us
+ * 40kHz : 1 sample = 1/40000 = 25us | 4Mhz:15,626us
+ * 26042Hz: ~ 24us
  * 1 tick = 80us
  * 1 bit = 240us+240us
  */
+const unsigned int tick = 1; // ~ 37us
+// tick=2 : 10, 7, 5, 2, 3
+#define bit0 6
+#define bit1 1 * bit0
+
 void save_turbo_bit( unsigned char bit, FILE *wav ) { // TTTTTTTTTTTTTTBBTBTTBBTBTTBBTBTTBBTBTTBB
-    wav_write_sample( wav, top, 2*tick );         // Ez ment 1 tick-kel is. Miért okoz hibát 3 tick?
+//    wav_write_sample( wav, top, 2 );    //
+//    wav_write_sample( wav, bottom, 1 );    //
+    // wav_write_sample( wav, top, 2*tick );         // Ez ment 1 tick-kel is. Miért okoz hibát 3 tick?
+//    wav_write_sample( wav, bottom, 1 );      // ~ 48us
     if ( bit ) { // Ha a bit 1
-        wav_write_sample( wav, bottom, tick );    // ~ 48us
-        wav_write_sample( wav, top, 2*tick );     // ~ 95us
+        wav_write_sample( wav, bottom, 4 );    //
+//        wav_write_sample( wav, top, 4 );    //
+// printf( "0x%02X %d\n", next_bit, bit1 );
     } else { // Ha a bit 0
-        wav_write_sample( wav, bottom, 2*tick );  // ~ 95us
-        wav_write_sample( wav, top, tick );       // ~ 48us
+//        wav_write_sample( wav, bottom, 4 );    //
+        wav_write_sample( wav, bottom, 2 );    //
+// printf( "0x%02X %d\n", next_bit, bit0 );
     }
-    wav_write_sample( wav, bottom, tick );      // ~ 48us
+//    wav_write_sample( wav, bottom, 1 );      // ~ 48us
+    wav_write_sample( wav, top, 3 );      // ~ 48us
 }
 
 void save_turbo_byte( unsigned char byte, FILE *wav ) {
+//    wav_write_sample( wav, top, 2*tick ); // Postfix HIGH ~ 95us
+//    wav_write_sample( wav, top, 2 ); // Postfix HIGH ~ 95us
+//    wav_write_sample( wav, bottom, 1 ); // Postfix HIGH ~ 95us
     for( int bit=1; bit<256; bit=bit*2 ) {
         save_turbo_bit( byte & bit, wav );
     }
-    wav_write_sample( wav, top, 2*tick ); // Postfix HIGH ~ 95us
+    wav_write_sample( wav, top, 3 ); // Time for store byte
 }
 
-void save_turbo_addr( unsigned int addr, FILE *wav ) {
-    save_turbo_byte( addr % 0x100, wav );
-    save_turbo_byte( addr / 0x100, wav );
+unsigned char reverse(unsigned char b) {
+   b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
+   b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
+   b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
+   return b;
 }
 
-void save_turbo_header( FILE *wav ) {
-//    wav_write_sample( wav, top, tick );    // ~ 48us
-    wav_write_sample( wav, bottom, tick ); // ~ 48us synchron
-    uint16_t sum = 0;
-    for( unsigned char i=0; i<14; i++ ) {
-        unsigned char c = i*3;
-        sum += c * 0x101;
-        save_turbo_byte( c, wav );
+unsigned int save_screen_block( FILE *wav, unsigned char v, int last ) {
+    save_turbo_byte( 0, wav ); // 1 == Read next block
+    save_turbo_byte( 0, wav ); // 1 == Read next block
+
+    save_turbo_byte( 0, wav ); // 1 == Read next block
+    save_turbo_byte( 0x18, wav ); // 1 == Read next block
+
+    for( int i = 0; i < 32 * 192; i++ ) {
+        save_turbo_byte( v, wav ); // 1 == Read next block
+        v = 255 - v;
     }
-    save_turbo_byte( sum % 0x100, wav );
-    save_turbo_byte( sum / 0x100, wav );
+    save_turbo_byte( last ? 0 : 1, wav ); // 1 == Read next block
+    return 6144;
 }
 
-void save_turbo_block_header( PTP_BLOCK_DATA block, FILE *wav ) {
-    // Bevezető byte a képernyőképhez
-    save_turbo_byte( ( block.type == 0xF5 ) ? 1 : 0, wav ); // Screen esetén 1 különben 1
-//    wav_write_sample( wav, top, 4*tick );
-    // 
-    save_turbo_addr( block.load_address, wav );              // load address
-    save_turbo_addr( block.byte_counter, wav );              // byte counter
-printf( "Create turbo block (size=0x%04X)\n", block.byte_counter );
-    // printf( "Create Big Turbo Block with size 0x%04X\n", block.byte_counter );
-    wav_write_sample( wav, top, block.byte_counter/1200*tick ); // For line writeing 80f0(33008) esetén 1A(26)*tick // 1200 volt eddig jó
-}
+void save_scr( FILE *wav, FILE *scr, int last ) {
+    save_turbo_byte( 0, wav ); // 1 == Read next block
+    save_turbo_byte( 0, wav ); // 1 == Read next block
 
-void save_payload_block_selector( int last, FILE *wav  ) {
-    if ( last ) { // Last block
-        if ( autoBasicRun && payload.basic_block_counter ) {
-            save_turbo_byte( 3, wav ); // 0 == RUN next ADDRESS or BASIC
-        } else if ( payload.run_address ) { // Ha nem nulla az indulási cím
-            save_turbo_byte( 0, wav ); // 0 == RUN next ADDRESS or BASIC
-            // printf( "Save run address: 0x%04X\n", payload.run_address );
-            save_turbo_addr( payload.run_address, wav );    // run address
-        } else {
-            save_turbo_byte( 2, wav ); // 2 == RETURN TO BASIC
-        }
-    } else {
-        save_turbo_byte( 1, wav ); // 1 == Read next block
+    save_turbo_byte( 0, wav ); // 1 == Read next block
+    save_turbo_byte( 0x18, wav ); // 1 == Read next block
+
+    for( int i = 0; i < 6144; i++ ) {
+        save_turbo_byte( fgetc( scr ), wav ); // 1 == Read next block
     }
 
+    save_turbo_byte( last ? 0 : 1, wav ); // 1 == Read next block
 }
 
-void save_payload_block( PTP_BLOCK_DATA block, FILE *wav, int last ) {
-    save_turbo_block_header( block, wav );
-    for( unsigned int i = 0; i < block.byte_counter; i++ ) save_turbo_byte( block.bytes[ i ], wav ); // save data content
-    save_payload_block_selector( last, wav );
-}
+#define MAX_FILENAME_LENGTH 1000
 
-void save_payload( FILE *wav ) {
-    save_turbo_header( wav ); // Szinkorn hullm kiírása
-    for( unsigned int block_index0 = 0; block_index0<payload.block_counter; block_index0++ ) {
-        save_payload_block( payload.blocks[ block_index0 ], wav, block_index0 == payload.block_counter-1 );
+unsigned int save_payload( FILE *wav, char* filename, int length, int last ) {
+    char fn[ MAX_FILENAME_LENGTH ] = "";
+    for( int i=0; i<length; i++ ) fn[i]=filename[i];
+    fn[length]=0;
+    printf( "*** '%s'\n", fn );
+    FILE *scr;
+    if ( scr = fopen( fn, "rb" ) ) {
+        save_scr( wav, scr, last );
+        fclose( scr );
+        return 6144;
     }
+    return 0;
+//    wav_write_sample( wav, top, 8*tick ); // ~ 48us synchron
+//    wav_write_sample( wav, bottom, ( bit1 + bit0 ) * tick / 2 - 4*tick ); // ~ 48us synchron
+//     wav_write_sample( wav, top, 1 );
+//    wav_write_sample( wav, top, 8*tick ); // ~ 48us synchron
+
+//    save_turbo_byte( 255, wav ); // 1 == Read next block
+//    save_turbo_byte( 255-0xE8, wav ); // 1 == Read next block
+/*    save_screen_block( wav,   0, 1 );
+    save_screen_block( wav, 255, 1 );
+    save_screen_block( wav,   2, 1 );
+    save_screen_block( wav,  10, 1 );
+    save_screen_block( wav,  42, 1 );
+    save_screen_block( wav, 170, 0 );*/
 }
 
 /****************************************************************************************************************************************
  * Main section
  ****************************************************************************************************************************************/
 void print_usage() {
-    printf( "ptp2turbo v%d.%d%c (build: %s)\n", VM, VS, VB, __DATE__ );
-    printf( "Convert .ptp file to turbo wav file.\n");
+    printf( "Slideshow v%d.%d%c (build: %s)\n", VM, VS, VB, __DATE__ );
+    printf( "Create slideshow as turbo wav file.\n");
     printf( "Copyright 2023 by László Princz\n");
     printf( "Usage:\n");
-    printf( "ptp2turbo -i <ptp_filename> -o <wav_filename>\n");
-    printf( "-a      : BASIC auto RUN command after load.\n");
+    printf( "slideshow -i <scr_file> -o <slideshow_wav_filename>\n");
+    printf( "-i      : The showed scr file. More than one is useable.\n");
     printf( "-v      : Verbose mode.\n");
     exit( 1 );
 }
 
+#define MAX_FILENAME_PUFFEL_LENGTH 65000
+#define MAX_FILENAME 1000
+
 int main(int argc, char *argv[]) {
     int opt = 0;
     FILE *wav = 0;
-    FILE *ptp = 0;
+    FILE *scr = 0;
+    char filenames[ MAX_FILENAME_PUFFEL_LENGTH ] = "";
+    int filename_lengths[ MAX_FILENAME ];
+    int filename_counter = 0;
     while ( ( opt = getopt (argc, argv, "va?h:i:o:") ) != -1 ) {
         switch ( opt ) {
             case -1:
@@ -353,12 +338,15 @@ int main(int argc, char *argv[]) {
             case '?':
             case 'h': print_usage(); break;
             case 'v': verbose = 1; break;
-            case 'a': autoBasicRun = 1; break;
-            case 'i': // open ptp file
-                ptp = fopen( optarg, "rb" );
-                if ( !ptp ) {
+            case 'i': 
+                scr = fopen( optarg, "rb" );
+                if ( !scr ) {
                     fprintf( stderr, "Error opening %s.\n", optarg);
                     exit(4);
+                } else {
+                    strcat( filenames, optarg );
+                    fclose( scr );
+                    filename_lengths[ filename_counter++ ] = strlen( optarg );
                 }
                 break;
             case 'o': // create wav file
@@ -370,22 +358,21 @@ int main(int argc, char *argv[]) {
                 break;
         }
     }
-    if ( ptp && wav ) {
-        payload = load_payload_from_ptp( ptp, verbose, 0 ); // turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
-        // payload = load_payload_from_ptp( ptp, verbose, 0 ); // turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
-//??        payload = load_payload_from_ptp( ptp, verbose, 0x1B5D ); // http://www.trs-80.com/wordpress/zaps-patches-pokes-tips/internal/
-        // payload = load_payload_from_ptp( ptp, verbose, 0x4433 ); // http://www.trs-80.com/wordpress/zaps-patches-pokes-tips/internal/
-        // payload = load_payload_from_ptp( ptp, verbose, 0x1D1E ); // http://www.trs-80.com/wordpress/zaps-patches-pokes-tips/internal/
-        // payload = load_payload_from_ptp( ptp, verbose, 0x1A33 ); // GOTO BASIC COMMAND MODE. turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
-        // payload = load_payload_from_ptp( ptp, verbose, turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
+    if ( wav ) {
         wav_init( wav );
-        shift_loader( payload.max_address+1 ); // Shift if need!
         save_loader( wav );
         wav_write_silence( wav, 20000 );
+
         payload_start_position = ftell( wav );
-        save_payload( wav );
-        wav_close( wav );
-        fclose( ptp );
+
+        unsigned long payload_size = 0;
+        payload_size += save_screen_block( wav, 255, 0 );
+        int start_pos = 0;
+        for( int i=0; i<filename_counter; i++ ) {
+            payload_size += save_payload( wav, filenames + start_pos, filename_lengths[ i ], i == filename_counter-1 );
+            start_pos += filename_lengths[ i ];
+        }
+        wav_close( wav, payload_size );
     } else {
         print_usage();
     }
