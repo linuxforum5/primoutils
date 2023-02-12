@@ -84,10 +84,10 @@ void wav_write_sample( FILE *wav, unsigned char sample, unsigned int counter ) {
 void wav_write_silence( FILE *wav, int pulse_counter ) { for( int i=0; i<pulse_counter; i++ ) fputc( SILENCE, wav ); }
 
 void wav_close( FILE *wav ) {
-    unsigned long full_size = ftell( wav );
+    uint32_t full_size = ftell( wav );
     fseek( wav, 4, SEEK_SET );
     fwrite( &full_size, sizeof( full_size ), 1, wav ); // Wave header 2. field : filesize with header. First the lowerest byte
-    unsigned long data_size = full_size - sizeof( waveHeader );
+    uint32_t data_size = full_size - sizeof( waveHeader );
     fseek( wav, sizeof( waveHeader ) - 4 ,SEEK_SET ); // data chunk size position: 40
     fwrite( &data_size, sizeof( data_size ), 1, wav );
     fclose( wav );
