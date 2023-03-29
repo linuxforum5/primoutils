@@ -34,7 +34,7 @@ static u_int16_t load_address = 0; // first byte load address
 */
 
 u_int16_t read_tape_close_block( FILE *ptp, unsigned char blockIndex, int is_autostart ) { // blockType and blockIndex already readed from ptp
-    if ( verbose ) printf( "\t%02X. tape block type: Close\n", blockIndex );
+    if ( verbose > 1 ) printf( "\t%02X. tape block type: Close\n", blockIndex );
     if ( is_autostart ) {
         unsigned char runAddressL = fgetc( ptp );
         unsigned char runAddressH = fgetc( ptp );
@@ -48,7 +48,7 @@ u_int16_t read_tape_close_block( FILE *ptp, unsigned char blockIndex, int is_aut
 }
 
 u_int16_t read_tape_name_block( FILE *ptp, unsigned char blockIndex ) { // blockType and blockIndex already readed from ptp
-    if ( verbose ) printf( "\t%02X. tape block type: Name\n", blockIndex );
+    if ( verbose > 1 ) printf( "\t%02X. tape block type: Name\n", blockIndex );
     unsigned char namesize = fgetc( ptp ); // < 17
     if ( namesize > 16 ) {
         printf( "Error: tape name too long! (%d>16)\n", namesize );
@@ -98,7 +98,7 @@ u_int16_t read_tape_data_block( FILE *ptp, unsigned char tapeBlockType, unsigned
     }
     PTP_BLOCK_DATA *bl = &blocks[ block_counter-1 ];
     unsigned char byteCounter = fgetc( ptp ); // If 0, then 256 bytes
-    if ( verbose ) printf( "\t%02X. tape block type: Data (0x%02X). Load: 0x%04X, Count1: 0x%02X\n", blockIndex, tapeBlockType, loadAddress, byteCounter );
+    if ( verbose > 1 ) printf( "\t%02X. tape block type: Data (0x%02X). Load: 0x%04X, Count1: 0x%02X\n", blockIndex, tapeBlockType, loadAddress, byteCounter );
     u_int16_t counter = byteCounter ? byteCounter : 256;
     if ( bl->load_address + bl->byte_counter != loadAddress ) { // Space in tape blocks
         create_new_big_block( loadAddress, tapeBlockType );
@@ -150,13 +150,13 @@ u_int16_t read_tape_block( FILE *ptp, uint16_t basic_run_address ) {
 unsigned char read_ptp_block( FILE *ptp, uint16_t basic_run_address ) {
     unsigned char ptpBlockType = fgetc( ptp );
     if ( ptpBlockType == 0x55 || ptpBlockType == 0xAA ) {
-        if ( verbose ) printf( "PTP Block type: 0x%02X\n", ptpBlockType );
+        if ( verbose > 1 ) printf( "PTP Block type: 0x%02X\n", ptpBlockType );
         u_int16_t ptpBlockSize = 0;
         fread( &ptpBlockSize, 2, 1, ptp );
-        if ( verbose ) fprintf( stdout, "\tRead first tape block in ptp block.\n" );
+        if ( verbose > 1 ) fprintf( stdout, "\tRead first tape block in ptp block.\n" );
         u_int16_t tapeBlockSizeSum = read_tape_block( ptp, basic_run_address );
         while( tapeBlockSizeSum < ptpBlockSize ) { // && ptpBlockType != 0xAA ) { // Hibás a ptp fájlban az utolsó blokkméret? Az AA blokk mérete 8, míg a benne lévő blokk csak 5 bájtos. TODO
-            if ( verbose ) fprintf( stdout, "\tRead next tape block in ptp block, because tapes sum size (%d) smaller than ptp block size (%d).\n", tapeBlockSizeSum, ptpBlockSize );
+            if ( verbose > 1 ) fprintf( stdout, "\tRead next tape block in ptp block, because tapes sum size (%d) smaller than ptp block size (%d).\n", tapeBlockSizeSum, ptpBlockSize );
             tapeBlockSizeSum += read_tape_block( ptp, basic_run_address );
         }
         if ( tapeBlockSizeSum > ptpBlockSize ) {

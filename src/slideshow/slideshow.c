@@ -15,7 +15,7 @@
 #include <stdint.h>
 
 // #include "Ptp.h"
-#include "wavloader.c"
+#include "slideshowLoader.c"
 
 #define VM 0
 #define VS 1
@@ -264,8 +264,8 @@ unsigned int save_screen_block( FILE *wav, unsigned char v, int last ) {
 }
 
 void save_scr( FILE *wav, FILE *scr, int last, unsigned char inverz, unsigned char raw ) {
-    save_turbo_byte( 0, wav ); // 1 == Read next block
-    save_turbo_byte( 0, wav ); // 1 == Read next block
+    save_turbo_byte( 0, wav ); // E <- DE low byte
+    save_turbo_byte( 0, wav ); // D <- DE high byte. Relative start address
 
     save_turbo_byte( 0, wav ); // 1 == Read next block
     save_turbo_byte( 0x18, wav ); // 1 == Read next block
@@ -320,9 +320,9 @@ void print_usage() {
     printf( "slideshow -[iIrR] <scr_file> -o <slideshow_wav_filename>\n");
     printf( "-i filename : Show the scr file as stored in tape. More than one is useable.\n");
     printf( "-I filename : Show the inverz scr file as stored in tape. More than one is useable.\n");
-    printf( "-r filename : Show the imagemagick generated raw file (MONO:filenam). More than one is useable.\n");
-    printf( "-r filename : Show the inverz imagemagick generated raw file (MONO:filenam). More than one is useable.\n");
-    printf( "-v      : Verbose mode.\n");
+    printf( "-r filename : Show the reverse bit ordered binary image file. (Example imagemagick generated MONO: file). More than one is useable.\n");
+    printf( "-R filename : Show the reverse bit ordered binary image file. (Example imagemagick generated MONO: file). More than one is useable.\n");
+    printf( "-v          : Verbose mode.\n");
     exit( 1 );
 }
 

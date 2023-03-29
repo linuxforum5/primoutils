@@ -199,6 +199,7 @@ void check_payload_block_addresses( uint16_t loader_first_address, uint16_t load
     for( unsigned int block_index0 = 0; block_index0<payload.block_counter; block_index0++ ) {
         uint16_t first = payload.blocks[ block_index0 ].load_address;
         uint16_t last = first + payload.blocks[ block_index0 ].byte_counter - 1;
+        if ( verbose ) printf( "  - Payload block from 0x%04X to 0x%04X\n", first, last );
         if ( first >= loader_first_address && first <= loader_last_address ) {
             fprintf( stderr, "Turbo loader error: payload content in loader memory (1)\n" ); exit(1);
         } else if ( last >= loader_first_address && last <= loader_last_address ) {
@@ -210,7 +211,7 @@ void check_payload_block_addresses( uint16_t loader_first_address, uint16_t load
 }
 
 void shift_loader5( uint16_t first_free_top_address ) {
-    uint16_t last_loader_address = first_free_top_address + turbo_loader.byte_counter;
+    uint16_t last_loader_address = first_free_top_address + turbo_loader.byte_counter; // A betoltó program utolsó bájtjának a címe eltolás után
     if ( last_loader_address <= 0x67A0 ) { // A32 fut
         printf( "Run on A32\n" );
     } else if ( last_loader_address <= 0xA7A0 ) { // A48 fut
@@ -222,13 +223,16 @@ void shift_loader5( uint16_t first_free_top_address ) {
         exit(1);
     }
     if ( first_free_top_address > turbo_loader.load_address ) { // Csak felfelé lehet másolni
-        if ( first_free_top_address - turbo_loader.load_address < turbo_loader.byte_counter ) first_free_top_address = turbo_loader.load_address + turbo_loader.byte_counter;
+//        if ( first_free_top_address - turbo_loader.load_address < turbo_loader.byte_counter ) {
+//            first_free_top_address = turbo_loader.load_address + turbo_loader.byte_counter;
+//        }
         // uint16_t dest_address = first_free_top_address;
-        uint16_t shift = turbo_loader.load_address - first_free_top_address;
-        check_payload_block_addresses( first_free_top_address, last_loader_address );
-        printf( "Move loader from 0x%04X to 0x%04X with 0x%04X\n", turbo_loader.load_address, first_free_top_address, shift );
-        turbo_loader.load_address -= shift;
-        turbo_loader.run_address  -= shift;                        //                                           Abs addr. Rel addr.
+        uint16_t shift = first_free_top_address - turbo_loader.load_address; // Ennyi bájttal kell felfelé tolni a betöltő programot az eredeti címéhez képes. Ez lehet akár 1 bájt is.
+        check_payload_block_addresses( first_free_top_address, last_loader_address ); // Megnézzük, hogy a kiszemelt hely valóban üres-e, nem töltenénk-e rá csomagot
+/// ---        printf( "Payload will load from 0x%04X to 0x%04X\n", turbo_loader.byte_counter, turbo_loader.load_address, first_free_top_address, shift );
+        printf( "Move loader (size=%d) from 0x%04X to 0x%04X with 0x%04X\n", turbo_loader.byte_counter, turbo_loader.load_address, first_free_top_address, shift );
+        turbo_loader.load_address += shift;
+        turbo_loader.run_address  += shift;                        //                                           Abs addr. Rel addr.
         turbo_loader.bytes[ 0x43 ] = first_free_top_address % 256; // COPY_GET_BYTE0_TO_GET_BYTE: + 1 :         4442+1 -> 0x0043
         turbo_loader.bytes[ 0x44 ] = first_free_top_address / 256;
         uint16_t loading_msg = first_free_top_address + 0x00ED;    // A LOADING_MSG relatív címe:               44ED   -> 0x00ED
@@ -237,7 +241,7 @@ void shift_loader5( uint16_t first_free_top_address ) {
         uint16_t error_msg = first_free_top_address + 0x001B; // ERROR_MSG relatív címe:                        441B   -> 0x001B
         turbo_loader.bytes[ 0xBC ] = error_msg % 256; // ERROR_MSG-re való hivatkozás az ERROR: + 1 címen:      44BB+1 -> 0x00BC
         turbo_loader.bytes[ 0xBD ] = error_msg / 256;
-    } else { // No move
+    } else { // No move: a loader maradhat a helyén, mert a betöltött program nem ér el addig
         printf( "Loader stay on 0x%04X address\n", turbo_loader.load_address );
     }
 }
@@ -334,6 +338,7 @@ void print_usage() {
     printf( "Usage:\n");
     printf( "ptp2turbo5 -i <ptp_filename> -o <wav_filename>\n");
     printf( "-a      : BASIC auto RUN command after load.\n");
+    printf( "-m addr : Move loader to defined address (0x prefix for hex).\n");
     printf( "-v      : Verbose mode.\n");
     exit( 1 );
 }
@@ -342,14 +347,26 @@ int main(int argc, char *argv[]) {
     int opt = 0;
     FILE *wav = 0;
     FILE *ptp = 0;
-    while ( ( opt = getopt (argc, argv, "va?h:i:o:") ) != -1 ) {
+    uint16_t m = 0;
+    int arg1 = 0;
+    long l = 0;
+    while ( ( opt = getopt (argc, argv, "va?h:i:o:m:") ) != -1 ) {
         switch ( opt ) {
             case -1:
             case ':': break;
             case '?':
             case 'h': print_usage(); break;
-            case 'v': verbose = 1; break;
+            case 'v': verbose++; break;
             case 'a': autoBasicRun = 1; break;
+            case 'm':
+//                if ( !sscanf( optarg, "%i", &arg1 ) ) {
+//                    fprintf( stderr, "Error parsing argument for '-m'.\n");
+//                    exit(2);
+//                } else {
+                l = strtol( optarg, NULL, 0 );
+                m = (uint16_t)l;
+//                }
+                break;
             case 'i': // open ptp file
                 ptp = fopen( optarg, "rb" );
                 if ( !ptp ) {
@@ -369,7 +386,7 @@ int main(int argc, char *argv[]) {
     if ( ptp && wav ) {
         payload = load_payload_from_ptp( ptp, verbose, 0 ); // turbo_loader.byte_counter - 46 ); // https://www.trs-80.com/wordpress/zaps-patches-pokes-tips/rom-addresses-general/
         wav_init( wav );
-        shift_loader5( payload.max_address+1 ); // Shift if need!
+        shift_loader5( m ? m : payload.max_address+1 ); // Shift if need!
         save_loader( wav );
         wav_write_silence( wav, 20000 );
         payload_start_position = ftell( wav );
