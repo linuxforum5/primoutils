@@ -27,8 +27,8 @@ PTP_DATA payload;
  * Wav functions
  ****************************************************************************************************************************************/
 const unsigned char  SILENCE = 0x80;
-const unsigned char POS_PEAK = 0xff; // Origi = f8
-const unsigned char NEG_PEAK = 0x00; // Origi = 08
+const unsigned char POS_PEAK = 0xf8; // Origi = f8
+const unsigned char NEG_PEAK = 0x08; // Origi = 08
 
 const unsigned int defaultBaud = 62000; // 54000 // 2*25000;
 // const unsigned int tick = 2; // 1 byte ~ 48us
@@ -176,7 +176,7 @@ void save_loader( FILE *wav ) {
     write_loader_name_block( wav, "Turbo loader 2.5" );
     unsigned char block_index = 1;
 
-    unsigned int name_index_from = turbo_loader.byte_counter - 36;
+    unsigned int name_index_from = 0x2D; // turbo_loader.byte_counter - 36; // NAME_ADDRESS: 442D -> 002D
     unsigned int name_length = strlen( payload.name );
     for( unsigned int i=0; i<name_length; i++ ) {
         turbo_loader.bytes[ name_index_from + i ] = payload.name[ i ];
@@ -232,15 +232,16 @@ void shift_loader5( uint16_t first_free_top_address ) {
 /// ---        printf( "Payload will load from 0x%04X to 0x%04X\n", turbo_loader.byte_counter, turbo_loader.load_address, first_free_top_address, shift );
         printf( "Move loader (size=%d) from 0x%04X to 0x%04X with 0x%04X\n", turbo_loader.byte_counter, turbo_loader.load_address, first_free_top_address, shift );
         turbo_loader.load_address += shift;
-        turbo_loader.run_address  += shift;                        //                                           Abs addr. Rel addr.
-        turbo_loader.bytes[ 0x43 ] = first_free_top_address % 256; // COPY_GET_BYTE0_TO_GET_BYTE: + 1 :         4442+1 -> 0x0043
-        turbo_loader.bytes[ 0x44 ] = first_free_top_address / 256;
-        uint16_t loading_msg = first_free_top_address + 0x00ED;    // A LOADING_MSG relatív címe:               44ED   -> 0x00ED
-        turbo_loader.bytes[ 0x29 ] = loading_msg % 256; // LOADING_MSG-re való hivatkozás az ENTRY_ADDRESS: + 1 4428+1 -> 0x0029 
-        turbo_loader.bytes[ 0x2A ] = loading_msg / 256;
-        uint16_t error_msg = first_free_top_address + 0x001B; // ERROR_MSG relatív címe:                        441B   -> 0x001B
-        turbo_loader.bytes[ 0xBC ] = error_msg % 256; // ERROR_MSG-re való hivatkozás az ERROR: + 1 címen:      44BB+1 -> 0x00BC
-        turbo_loader.bytes[ 0xBD ] = error_msg / 256;
+        turbo_loader.run_address  += shift;                        //                                                      Abs addr. Rel addr.
+        turbo_loader.bytes[ 0x6B ] = first_free_top_address % 256; // COPY__READ_BYTE_INTO_B__TO__GET_BYTE: + 1 :          446A+1 -> 0x006B
+        turbo_loader.bytes[ 0x6C ] = first_free_top_address / 256;
+        uint16_t loading_msg = first_free_top_address + 0x002A;    // A LOADING_MSG relatív címe:                          442A   -> 0x002A
+        turbo_loader.bytes[ 0x51 ] = loading_msg % 256;            // LOADING_MSG-re való hivatkozás az ENTRY_ADDRESS: + 1 4450+1 -> 0x0051 
+        turbo_loader.bytes[ 0x52 ] = loading_msg / 256;
+        uint16_t error_msg = first_free_top_address + 0x001D;      // ERROR_MSG relatív címe:                              441D   -> 0x001D
+        turbo_loader.bytes[ 0x91 ] = error_msg % 256;              // ERROR_MSG-re való hivatkozás az ERROR: + 1 címen:    4490+1 -> 0x0091
+        turbo_loader.bytes[ 0x92 ] = error_msg / 256;
+                                                                   // NAME_ADDRESS: átírása a save_loader műveletben!
     } else { // No move: a loader maradhat a helyén, mert a betöltött program nem ér el addig
         printf( "Loader stay on 0x%04X address\n", turbo_loader.load_address );
     }
@@ -265,7 +266,7 @@ void save_turbo5_byte( unsigned char byte, FILE *wav ) {
     for( int bit=1; bit<256; bit=bit*2 ) {
         save_turbo5_bit( byte & bit, wav );
     }
-    wav_write_sample( wav, top, 3 ); // Time for store byte
+    wav_write_sample( wav, top, 3 ); // Time for store byte: 3
 }
 
 void save_turbo5_addr( unsigned int addr, FILE *wav ) {
@@ -288,22 +289,23 @@ void save_turbo5_header( FILE *wav ) {
 
 void save_turbo5_block_header( PTP_BLOCK_DATA block, FILE *wav ) {
     // Bevezető byte a képernyőképhez
-    save_turbo5_byte( ( block.type == 0xF5 ) ? 1 : 0, wav ); // Screen esetén 1 különben 1
+    save_turbo5_byte( ( block.type == 0xF5 ) ? 1 : 0, wav ); // Screen esetén 1 különben 0
 //    wav_write_sample( wav, top, 4*tick );
     // 
     save_turbo5_addr( block.load_address, wav );              // load address
     save_turbo5_addr( block.byte_counter, wav );              // byte counter
-printf( "Create turbo 2.5 block (type=0x%02X, size=0x%04X, load address=0x%04X)\n", block.type, block.byte_counter, block.load_address );
+    printf( "Create turbo 2.5 block (type=0x%02X, size=0x%04X, load address=0x%04X)\n", block.type, block.byte_counter, block.load_address );
     // printf( "Create Big Turbo Block with size 0x%04X\n", block.byte_counter );
+// Idő kell a status vonal kirajzolásához is ( STATUS ):
     wav_write_sample( wav, top, block.byte_counter/400 ); // For line writing 80f0(33008) esetén 1A(26)*tick // 1200 volt eddig jó
 }
 
 void save_payload5_block_selector( int last, FILE *wav  ) {
     if ( last ) { // Last block
         if ( autoBasicRun && payload.basic_block_counter ) {
-            save_turbo5_byte( 3, wav ); // 0 == RUN next ADDRESS or BASIC
+            save_turbo5_byte( 3, wav ); // 3 == BASIC RUN
         } else if ( payload.run_address ) { // Ha nem nulla az indulási cím
-            save_turbo5_byte( 0, wav ); // 0 == RUN next ADDRESS or BASIC
+            save_turbo5_byte( 0, wav ); // 0 == RUN next ADDRESS
             // printf( "Save run address: 0x%04X\n", payload.run_address );
             save_turbo5_addr( payload.run_address, wav );    // run address
         } else {
@@ -316,14 +318,20 @@ void save_payload5_block_selector( int last, FILE *wav  ) {
 
 void save_payload5_block( PTP_BLOCK_DATA block, FILE *wav, int last ) {
     save_turbo5_block_header( block, wav );
-    for( unsigned int i = 0; i < block.byte_counter; i++ ) save_turbo5_byte( block.bytes[ i ], wav ); // save data content
+    unsigned char crc = 0;
+    for( unsigned int i = 0; i < block.byte_counter; i++ ) {
+        save_turbo5_byte( block.bytes[ i ], wav ); // save data content
+        crc += block.bytes[ i ];
+    }
+    save_turbo5_byte( crc, wav ); // save data content
     save_payload5_block_selector( last, wav );
 }
 
 void save_payload5( FILE *wav ) {
-    save_turbo5_header( wav ); // Szinkorn hullm kiírása
+    save_turbo5_header( wav ); // Szinkron hullám kiírása
     for( unsigned int block_index0 = 0; block_index0<payload.block_counter; block_index0++ ) {
         save_payload5_block( payload.blocks[ block_index0 ], wav, block_index0 == payload.block_counter-1 );
+        wav_write_sample( wav, top, 10 );
     }
 }
 

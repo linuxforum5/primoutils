@@ -1,5 +1,5 @@
 /**
- * Primo .ptp c bináris tartalmának c forráskódbakonvertálása
+ * Primo .ptp fájl bináris tartalmának c forráskódbakonvertálása
  */
 #include <sys/types.h>
 #include <sys/stat.h>

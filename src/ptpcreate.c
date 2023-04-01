@@ -500,7 +500,7 @@ int main(int argc, char *argv[]) {
     int need_default_name = 1;
     int sourceBlockCounter = 0;
     srcs[ sourceBlockCounter++ ] = create_name_block();
-    while ( ( opt = getopt (argc, argv, "v?h:b:i:o:") ) != -1 ) {
+    while ( ( opt = getopt (argc, argv, "v?h:b:n:i:o:") ) != -1 ) {
         switch ( opt ) {
             case -1:
             case ':':

@@ -25,6 +25,7 @@ static u_int16_t run_address = 0; // run address after load
 int block_counter = 0;
 int basic_block_counter = 0;
 unsigned char last_data_block_type = 0;
+int is_basic = 0; // true, if basic code exists in ptp
 
 static PTP_BLOCK_DATA blocks[ MAX_BLOCK_COUNTER ];
 /*
@@ -122,7 +123,7 @@ u_int16_t read_tape_block( FILE *ptp, uint16_t basic_run_address ) {
         switch( tapeBlockType ) {
             case 0x83 :
             case 0x87 : return read_tape_name_block( ptp, blockIndex ); break;
-            case 0xF1 : return read_tape_data_block( ptp, tapeBlockType, blockIndex, BASIC_START_ADDRESS ); break; // Basic program 4B0B : 43EA
+            case 0xF1 : is_basic = 1; return read_tape_data_block( ptp, tapeBlockType, blockIndex, BASIC_START_ADDRESS ); break; // Basic program 4B0B : 43EA
             case 0xF5 : // Képernyő
 //        case 0xF7 : // Basic adat
             case 0xF9 : return read_tape_data_block( ptp, tapeBlockType, blockIndex, 0 ); break; // Gépi program
@@ -130,7 +131,7 @@ u_int16_t read_tape_block( FILE *ptp, uint16_t basic_run_address ) {
                 run_address = basic_run_address; // BASIC program vége
                 if ( last_data_block_type == 0xF1 ) {
                     check_BASIC_load_addresses_in_last_block();
-                } else {
+                } else if ( is_basic ) {
                     fprintf( stderr, "Invalid BASIC close block! Not after BASIC code\n" );
                     exit(1);
                 }

@@ -1,5 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Microkey Primo clock speed 2.5MHz. The Z80 T = 0.4us
+;;; Turbo kernel
 ;;; Source wav file contains 62000 sample per seconds. One sample length 16,129032258 ~ 40T
 ;;; Source wav format:
 ;;; - Prefix is 20000 silence sample (HIGH value in port)
@@ -19,6 +20,9 @@
 PORT:                    EQU     $1F             ; 0-63 porttartomány képviselője. Ezen keresztül érhető el a kazettacsatlakozó
 PORT_MIRROR:             EQU     $403B           ; Port mirror byte
 SCREEN_START_POINTER:    EQU     $4039
+
+
+
 
                 ORG $4400
 
@@ -42,7 +46,22 @@ READ_BLOCK:                          ;  T ;
     LD D, B                               ; DE contains byte counter. In general: 0x1800
 ;;;;;;;;;;;; time of 3 samples is 121T
 
-include 'inc/READ_BLOCK_DATA.asm';
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Read a full block
+;;; HL : Start address in memory for store
+;;; DE : byte counter
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+READ_BLOCK_DATA:                     ;  T ; Egy bájt feldolgozásának ideje: 13.75us + 5.25us - 1.25us a GET_BYTE-on belül = 17.75us
+    CALL READ_BYTE_INTO_B            ; 17 ; Read a byte
+    LD (HL), B                       ;  7 ; Store a readed byte
+    INC HL                           ;  4 ; Increment store address
+    DEC DE                           ;  4 ; Decrement byte counter
+    LD A, D                          ;  7 ;
+    OR E                             ;  4 ;
+    JR NZ, READ_BLOCK_DATA           ;12/7; Read next byte if DE is not 0
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; End Read block data
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     CALL READ_BYTE_INTO_B            ; 17 ; Read flag byte. 1=read next block, 0=End slideshow: wait for ENTER to restart
     DEC B                            ;  4 ;
     JR Z, READ_BLOCK                 ;    ; If Z, then B was 1: read next block.
@@ -56,4 +75,3 @@ WAIT:                                     ; Start keybord listening
     JR Z, WAIT                            ; Wait for RETURN key "pressed"
     JP 0                                  ; RETURN pressed, reboot
 
-include 'inc/READ_BYTE_INTO_B.asm';
