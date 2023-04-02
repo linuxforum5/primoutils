@@ -15,10 +15,13 @@
 #include "lib/fs.h"
 
 #define VM 0
-#define VS 1
+#define VS 2
 #define VB 'b'
 
 int verbose = 0;
+int is_basic_block = 0; // True, if basic block exists
+int is_system_block = 0; // True, if system block exists
+int last_system_run_address = 0; // Last system run address - if exists - to the end of tape
 
 /*
  * Tape blokktípusok:
@@ -338,29 +341,35 @@ uint16_t write_ptptape_data_block( FILE *ptp, unsigned char tape_data_type_code,
     fputc( tape_data_type_code, ptp ); // 
     crc = 0;
     fputc( CRC( BCD( tape_block_index++ ) ), ptp );
-    fputc( CRC( from % 256 ), ptp );
-    fputc( CRC( from / 256 ), ptp );
+    uint16_t load_address = src.load_address + from;
+    fputc( CRC( load_address % 256 ), ptp );
+    fputc( CRC( load_address / 256 ), ptp );
     fputc( CRC( length % 256 ), ptp );
     for( int i=0; i<length; i++ ) fputc( CRC( src.bytes[ from+i ] ), ptp );
     fputc( crc, ptp );
     return length + 9; // + 6 + 3
 }
 
-uint16_t write_basic_last_ptptape_block( FILE *ptp ) {
+uint16_t write_close_ptptape_block( FILE *ptp, unsigned char tape_close_type_code, uint16_t run_address_if_B9 ) {
     if ( verbose ) printf( "Write last basic block (0x%02X)\n", 0xB1 );
-    uint16_t ptpBlockSize = 3;
+    uint16_t ptpBlockSize = ( tape_close_type_code == 0xB9 ) ? 5 : 3;
     fputc( 0xAA, ptp ); // inner ptp block
     fputc( ptpBlockSize % 256, ptp );
     fputc( ptpBlockSize / 256, ptp );
-    fputc( 0xB1, ptp ); // BASIC vége
+    fputc( tape_close_type_code, ptp ); // BASIC vége
     crc = 0;
     fputc( CRC( BCD( tape_block_index++ ) ), ptp );
+    if ( tape_close_type_code == 0xB9 ) { // System autorun
+        fputc( CRC( run_address_if_B9 % 256 ), ptp );
+        fputc( CRC( run_address_if_B9 / 256 ), ptp );
+    }
     fputc( crc, ptp );
-    return 6; // 3 + 3
+    return 3 + ptpBlockSize;
 }
 
 uint16_t write_basic_source_block( FILE *ptp, SourceBlock src ) {
     uint16_t ptp_block_length = 0;
+    is_basic_block = 1;
     for( int i=0; i<src.byte_counter; i+=256 ) {
         ptp_block_length += write_ptptape_data_block( ptp, 0xF1, src, i, ( src.byte_counter - i > 255 ) ? 256 : src.byte_counter - i );
     }
@@ -375,11 +384,30 @@ uint16_t write_screen_source_block( FILE *ptp, SourceBlock src ) {
     return ptp_block_length;
 }
 
+uint16_t write_binary_source_block( FILE *ptp, SourceBlock src ) {
+    uint16_t ptp_block_length = 0;
+    is_system_block = 1;
+    for( int i=0; i<src.byte_counter; i+=256 ) {
+        ptp_block_length += write_ptptape_data_block( ptp, 0xF9, src, i, ( src.byte_counter - i > 255 ) ? 256 : src.byte_counter - i );
+    }
+    return ptp_block_length;    
+}
+
+/*uint16_t write_binary_run_source_block( FILE *ptp, SourceBlock src ) {
+    uint16_t ptp_block_length = 0;
+    for( int i=0; i<src.byte_counter; i+=256 ) {
+        ptp_block_length += write_ptptape_data_block( ptp, 0xB9, src, i, ( src.byte_counter - i > 255 ) ? 256 : src.byte_counter - i );
+    }
+    return ptp_block_length;    
+}*/
+
 uint16_t write_ptp_block( FILE *ptp, SourceBlock src ) {
     switch( src.type ) {
         case 'B' : return write_basic_source_block( ptp, src ); break;
         case 'S' : return write_screen_source_block( ptp, src ); break;
         case 'N' : return write_programname_ptptape_block( ptp, src ); break;
+        case 'Z' : return write_binary_source_block( ptp, src ); break; // Z80 system code
+        // case 'R' : return write_binary_run_source_block( ptp, src ); break; // Z80 system code
         default: printf( "Invalid source type: 0x%02X\n", src.type ); exit(1); break;
     }
 }
@@ -393,7 +421,8 @@ printf( "Block counter = %d\n", sourceBlockCounter );
     for( int i=0; i<sourceBlockCounter; i++ ) {
         ptp_content_length += write_ptp_block( ptp, srcs[ i ] );
     }
-    ptp_content_length += write_basic_last_ptptape_block( ptp );
+    if ( is_basic_block ) ptp_content_length += write_close_ptptape_block( ptp, 0xB1, 0 );
+    if ( is_system_block ) ptp_content_length += write_close_ptptape_block( ptp, 0xB9, last_system_run_address );
     fseek( ptp, 1, SEEK_SET );
     fputc( ptp_content_length % 256, ptp );
     fputc( ptp_content_length / 256, ptp );
@@ -422,6 +451,35 @@ int ext_is( const char* filename, const char* ext ) {
  * SourceBlock functions
  ********************************************************************************************************************/
 
+uint16_t get_address_from( const char* filename, const char* pattern ) {
+    uint16_t addr = 0;
+    int pos = 0;
+    for( int i=0; filename[i]; i++ ) {
+        if ( pattern[pos] ) {
+            if ( pattern[pos] == 'x' ) { // hexadecimal number
+                if ( filename[i]>='0' && filename[i]<='9' ) {
+                    addr = 16 * addr + filename[i]-'0';
+                    pos++;
+                } else if ( filename[i]>='A' && filename[i]<='F' ) {
+                    addr = 16 * addr + filename[i]-'A'+10;
+                    pos++;
+                } else {
+                    pos=0;
+                    addr = 0;
+                }
+            } else { // fix character
+                if ( filename[i] == pattern[pos] ) {
+                    pos++;
+                } else {
+                    pos=0;
+                    addr = 0;
+                }
+            }
+        } // No search again
+    }
+    return pattern[pos] ? 0 : addr;
+}
+
 SourceBlock create_source_mirror_block_from_file( unsigned char type, const char* filename, unsigned char xor ) {
     SourceBlock src = newSourceBlock( type ); // Screen data
     FILE *f = fopen( filename, "rb" ); // 0 if not source
@@ -431,6 +489,8 @@ SourceBlock create_source_mirror_block_from_file( unsigned char type, const char
     }
     for( src.bytes[ src.byte_counter ] = fgetc( f ); !feof( f ); src.bytes[ src.byte_counter ] = xor ^ fgetc( f ) ) src.byte_counter++;
     fclose( f );
+    src.load_address = get_address_from( filename, ".LxxxxH." );
+    last_system_run_address = src.run_address = get_address_from( filename, ".RxxxxH." );
     return src;
 }
 
@@ -455,6 +515,9 @@ SourceBlock create_source_block_from_file( const char* filename, int need_invers
     if ( ext_is( filename, "scr" ) ) return create_source_mirror_block_from_file( 'S', filename, need_inversion ? 255 : 0 );
 
     if ( ext_is( filename, "pnm" ) ) return create_source_mirror_block_from_file( 'N', filename, 0 );
+
+    if ( ext_is( filename, "sys" ) ) return create_source_mirror_block_from_file( 'Z', filename, 0 ); // TODO
+    // if ( ext_is( filename, "run" ) ) return create_source_mirror_block_from_file( 'R', filename, 0 ); // TODO
     printf( "Invalid file type (extension)!\n" );
     exit( 3 );
 }
@@ -478,8 +541,8 @@ void print_usage() {
     printf( "- .txt         : define BASIC source program list int text format, primo encoded (0xF1).\n");
     printf( "- .utf8.txt    : define BASIC source program list int text format, utf8 encoded (0xF1).\n");
     printf( "- .scr         : define screen data (0xF5).\n");
-    printf( "- .sys or .bin : Binary machine language program code (0xF9). It is necessary, the filename contains the absolute load address int the next format: -ORGxxxxH-.\n");
-    printf( "- .run         : Run block for machine code (0xB9). 2 bytes only.\n");
+    printf( "- .sys         : Binary machine language program code (0xF9). It is necessary, the filename contains the load address int the next format: .LxxxxH.\n");
+    // printf( "- .run         : Run block for machine code (0xB9). 2 bytes only.\n");
     printf( "For absolute load address, and au- .sys or .bin : Binary machine language program code.\n");
     printf( "Copyright 2023 by László Princz\n");
     printf( "Usage:\n");

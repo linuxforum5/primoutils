@@ -229,7 +229,7 @@ void show_block_info( int file_index, TapeBlockType bigTapeBlock ) {
     uint16_t load_address = ( bigTapeBlock.type == 0xF1 ) ? bigTapeBlock.load_address + BASIC_START : bigTapeBlock.load_address;
     uint16_t top_address = 0;
     if ( run_address && load_address ) top_address = load_address + bigTapeBlock.byte_counter;
-    printf( "%s\t%d.\t0x%02X\t%s\t%d\t%d\t%4X\t%X\t%X\t%X\t%X\t%X\t%X\n", curfile_printed ? "" : curfile, file_index, bigTapeBlock.type, type_name, bigTapeBlock.tape_block_counter, bigTapeBlock.close_counter, load_address, bigTapeBlock.byte_counter, run_address, top_address, top_address?0x6800-top_address:0, top_address?0xA800-top_address:0, top_address?0xE800-top_address:0 );
+    printf( "%s\t%d.\t0x%02X\t%s\t%d\t%d\t%4X\t%X\t%X\t%X\t%X\t%X\t%X\n", curfile_printed ? "" : curfile, file_index, bigTapeBlock.type, type_name, bigTapeBlock.tape_block_counter, bigTapeBlock.close_counter, load_address, bigTapeBlock.byte_counter, run_address, top_address, (top_address<0x6800)?0x6800-top_address:0, (top_address<0xA800)?0xA800-top_address:0, top_address?0xE800-top_address:0 );
     curfile_printed = 1;
     if ( dump ) {
         char dumpname[100];
@@ -238,8 +238,8 @@ void show_block_info( int file_index, TapeBlockType bigTapeBlock ) {
             case 0XF1 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.bas", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
             case 0XF5 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.scr", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
             case 0XF7 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.dat", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
-            case 0XF9 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.sys", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
-            case 0XB9 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.run", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
+            case 0XF9 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.R%04XH.sys", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address, bigTapeBlock.run_address ); break;
+//            case 0XB9 : sprintf( dumpname, "%s.block.%d.%d.L%04XH.run", dump_name_prefix, file_index, dump++, bigTapeBlock.load_address ); break;
             default: sprintf( dumpname, "%s.block.%d.%d.0x%02X.bin", dump_name_prefix, file_index, dump++, bigTapeBlock.type );
         }
         if ( bigTapeBlock.type == 0xF5 && create_gif ) {
@@ -258,6 +258,13 @@ void show_block_info( int file_index, TapeBlockType bigTapeBlock ) {
             FILE * d = fopen( dumpname, "wb" );
             for( int i=0; i<bigTapeBlock.byte_counter; i++) fputc( bigTapeBlock.bytes[i], d );
             fclose( d );
+/*            if ( bigTapeBlock.type == 0xF9 ) {
+                sprintf( dumpname, "%s.block.%d.%d.R%04XH.run", dump_name_prefix, file_index, dump-1, bigTapeBlock.run_address );
+                FILE * d = fopen( dumpname, "wb" );
+                fputc( bigTapeBlock.run_address % 256, d );
+                fputc( bigTapeBlock.run_address / 256, d );
+                fclose( d );
+            }*/
         }
     }
 }
