@@ -6,7 +6,7 @@ WBIN=win32
 BIN=bin
 INSTALL_DIR=~/.local/bin
 
-all: pp2ptp ptpinfo ptpblocks ptp2txt ptpdump ptp2wav ptp2c ptp2turbo ptp2turbo5 ptpcreate slideshow wav2asm
+all: pp2ptp ptpinfo ptpblocks ptp2txt ptpdump ptp2wav ptp2pri ptp2c ptp2turbo ptp2turbo5 ptpcreate slideshow wav2asm
 
 pp2ptp: $(SRC)/pp2ptp.c
 	$(CC) -o $(BIN)/pp2ptp $(SRC)/pp2ptp.c
@@ -15,6 +15,10 @@ pp2ptp: $(SRC)/pp2ptp.c
 ptp2wav: $(SRC)/ptp2wav.c
 	$(CC) -o $(BIN)/ptp2wav $(SRC)/ptp2wav.c
 	$(WCC) -o $(WBIN)/ptp2wav $(SRC)/ptp2wav.c
+
+ptp2pri: $(SRC)/ptp2pri.c
+	$(CC) -o $(BIN)/ptp2pri $(SRC)/ptp2pri.c
+	$(WCC) -o $(WBIN)/ptp2pri $(SRC)/ptp2pri.c
 
 wav2asm: $(SRC)/wav2asm/wav2asm.c
 	$(CC) -o $(BIN)/wav2asm $(SRC)/wav2asm//wav2asm.c

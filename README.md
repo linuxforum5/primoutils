@@ -1,6 +1,6 @@
 # primoutils
 Primo segédprogramok 2023 linux és windows rendszerekre:
-    pp2ptp, ptp2c, ptp2turbo, ptp2txt, ptp2wav, ptpblocks, ptpcreate, ptpdump, ptpinfo.
+    pp2ptp, ptp2c, ptp2turbo, ptp2txt, ptp2wav, ptp2pri, ptpblocks, ptpcreate, ptpdump, ptpinfo.
 A Windows programok a win32 mappában, a linux parancsok a bin mappában találhatók.
 
 ## ptp2turbo
